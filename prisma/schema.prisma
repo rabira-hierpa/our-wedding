@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Guest {
+  id               String   @id @default(uuid())
+  telegramUserId   BigInt   @unique @map("telegram_user_id")
+  telegramUsername String?  @map("telegram_username")
+  firstName        String   @map("first_name")
+  lastName         String?  @map("last_name")
+  registeredAt     DateTime @default(now()) @map("registered_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  photos Photo[]
+
+  @@index([telegramUserId])
+  @@map("guests")
+}
+
+model Photo {
+  id             String   @id @default(uuid())
+  guestId        String   @map("guest_id")
+  storagePath    String   @map("storage_path")
+  publicUrl      String   @map("public_url")
+  telegramFileId String   @map("telegram_file_id")
+  caption        String?
+  uploadedAt     DateTime @default(now()) @map("uploaded_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@index([guestId])
+  @@index([uploadedAt(sort: Desc)])
+  @@map("photos")
+}

@@ -1,0 +1,728 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import {
+  verifyTelegramRequest,
+  getHighestResolutionPhoto,
+  getFileInfo,
+  downloadTelegramFile,
+  sendMessage,
+  sendPhoto,
+  sendChatAction,
+  sendPhotoWithButtons,
+  answerCallbackQuery,
+  deleteMessage,
+} from '@/lib/telegram';
+import { uploadPhotoToStorage, deletePhotoFromStorage } from '@/lib/file-storage';
+import type { TelegramUpdate } from '@/types/telegram';
+
+const WEDDING_GROUP_CHAT_ID = process.env.WEDDING_GROUP_CHAT_ID
+  ? parseInt(process.env.WEDDING_GROUP_CHAT_ID)
+  : null;
+
+// Track media groups to handle multiple photos sent together
+const mediaGroups = new Map<string, { photos: any[], timeout: NodeJS.Timeout }>();
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verify the request comes from Telegram
+    const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
+    console.log('Received secret header:', secret);
+    console.log('Expected secret:', process.env.TELEGRAM_WEBHOOK_SECRET);
+    if (!secret || !verifyTelegramRequest(secret)) {
+      console.error('Invalid or missing secret token');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const update: TelegramUpdate = await request.json();
+    console.log('Received update:', JSON.stringify(update, null, 2));
+
+    // Handle callback queries (button presses)
+    if (update.callback_query) {
+      await handleCallbackQuery(update.callback_query);
+      return NextResponse.json({ ok: true });
+    }
+
+    const message = update.message;
+    if (!message) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const user = message.from;
+    if (!user || user.is_bot) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /start command for registration
+    if (message.text?.startsWith('/start')) {
+      await handleRegistration(user, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /help command
+    if (message.text?.startsWith('/help')) {
+      await handleHelp(message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /myphotos command
+    if (message.text?.startsWith('/myphotos')) {
+      await handleMyPhotos(user, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /delete command
+    if (message.text?.startsWith('/delete')) {
+      await handleDeletePhoto(user, message.text, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Reject videos
+    if (message.video) {
+      await sendMessage(
+        message.chat.id,
+        '❌ Sorry, I only accept photos (images), not videos.',
+        message.message_id
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle photo sent as document (file)
+    if (message.document) {
+      const mimeType = message.document.mime_type || '';
+      // Check if document is an image
+      if (mimeType.startsWith('image/')) {
+        await handleDocumentPhoto(
+          user,
+          message.document,
+          message.caption,
+          message.chat.id,
+          message.message_id
+        );
+        return NextResponse.json({ ok: true });
+      } else {
+        await sendMessage(
+          message.chat.id,
+          '❌ Sorry, I only accept image files. Please send photos.',
+          message.message_id
+        );
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // Handle photo upload (including multiple photos)
+    if (message.photo && message.photo.length > 0) {
+      // Check if this is part of a media group (multiple photos sent together)
+      if (message.media_group_id) {
+        await handleMediaGroup(
+          user,
+          message.media_group_id,
+          message.photo,
+          message.caption,
+          message.chat.id,
+          message.message_id
+        );
+      } else {
+        // Single photo
+        await handlePhotoUpload(
+          user,
+          message.photo,
+          message.caption,
+          message.chat.id,
+          message.message_id
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle other text messages
+    if (message.text) {
+      await sendMessage(
+        message.chat.id,
+        '📸 Send me photos to add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos',
+        message.message_id
+      );
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Handles guest registration
+ */
+async function handleRegistration(
+  user: any,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    // Check if user already exists
+    const existingGuest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (existingGuest) {
+      await sendMessage(
+        chatId,
+        `Welcome back, ${user.first_name}! 👋\n\nSend me photos and I'll add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos`,
+        messageId
+      );
+      return;
+    }
+
+    // Register new guest
+    try {
+      await prisma.guest.create({
+        data: {
+          telegramUserId: BigInt(user.id),
+          telegramUsername: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+      });
+
+      await sendMessage(
+        chatId,
+        `Hi ${user.first_name}! 🎉\n\nYou're now registered! Send me photos and they'll automatically be added to the wedding gallery.\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos`,
+        messageId
+      );
+    } catch (error) {
+      console.error('Error registering guest:', error);
+      await sendMessage(
+        chatId,
+        'Sorry, there was an error registering you. Please try again later.',
+        messageId
+      );
+    }
+  } catch (error) {
+    console.error('Error in handleRegistration:', error);
+  }
+}
+
+/**
+ * Handles /help command
+ */
+async function handleHelp(chatId: number, messageId: number) {
+  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/myphotos - View your uploaded photos with delete buttons\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
+
+  await sendMessage(chatId, helpText, messageId);
+}
+
+/**
+ * Handles /myphotos command
+ */
+async function handleMyPhotos(user: any, chatId: number, messageId: number) {
+  try {
+    const guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+      include: {
+        photos: {
+          orderBy: { uploadedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!guest || guest.photos.length === 0) {
+      await sendMessage(
+        chatId,
+        'You haven\'t uploaded any photos yet. Send me some photos to get started! 📸',
+        messageId
+      );
+      return;
+    }
+
+    // Send each photo with a delete button
+    await sendMessage(
+      chatId,
+      `You have uploaded ${guest.photos.length} photo(s). Tap the 🗑️ Delete button below any photo to remove it.`,
+      messageId
+    );
+
+    for (let index = 0; index < guest.photos.length; index++) {
+      const photo = guest.photos[index];
+      const photoNumber = index + 1;
+      const caption = photo.caption
+        ? `Photo ${photoNumber}: ${photo.caption}`
+        : `Photo ${photoNumber}`;
+
+      // Send photo with delete button using Telegram file_id
+      await sendPhotoWithButtons(
+        chatId,
+        photo.telegramFileId,
+        caption,
+        [[{ text: '🗑️ Delete', callback_data: `delete_${photo.id}` }]]
+      );
+    }
+  } catch (error) {
+    console.error('Error in handleMyPhotos:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error retrieving your photos.',
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles /delete command
+ */
+async function handleDeletePhoto(
+  user: any,
+  messageText: string,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    const parts = messageText.split(' ');
+    if (parts.length < 2 || isNaN(parseInt(parts[1]))) {
+      await sendMessage(
+        chatId,
+        'Please specify a photo number to delete. Use: /delete <number>\n\nTo see your photos, use: /myphotos',
+        messageId
+      );
+      return;
+    }
+
+    const photoNumber = parseInt(parts[1]);
+
+    const guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+      include: {
+        photos: {
+          orderBy: { uploadedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!guest || guest.photos.length === 0) {
+      await sendMessage(
+        chatId,
+        'You don\'t have any photos to delete.',
+        messageId
+      );
+      return;
+    }
+
+    if (photoNumber < 1 || photoNumber > guest.photos.length) {
+      await sendMessage(
+        chatId,
+        `Invalid photo number. You have ${guest.photos.length} photo(s). Use /myphotos to see them.`,
+        messageId
+      );
+      return;
+    }
+
+    const photoToDelete = guest.photos[photoNumber - 1];
+
+    // Delete from storage
+    await deletePhotoFromStorage(photoToDelete.storagePath);
+
+    // Delete from database
+    await prisma.photo.delete({
+      where: { id: photoToDelete.id },
+    });
+
+    await sendMessage(
+      chatId,
+      `✅ Photo ${photoNumber} has been deleted from the gallery.`,
+      messageId
+    );
+  } catch (error) {
+    console.error('Error in handleDeletePhoto:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error deleting the photo.',
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles callback queries (inline button presses)
+ */
+async function handleCallbackQuery(callbackQuery: any) {
+  try {
+    const user = callbackQuery.from;
+    const data = callbackQuery.data;
+    const chatId = callbackQuery.message?.chat.id;
+    const messageId = callbackQuery.message?.message_id;
+
+    if (!chatId || !messageId) {
+      await answerCallbackQuery(callbackQuery.id, 'Error processing request');
+      return;
+    }
+
+    // Handle delete button press
+    if (data?.startsWith('delete_')) {
+      const photoId = data.replace('delete_', '');
+
+      // Find the photo and verify ownership
+      const photo = await prisma.photo.findUnique({
+        where: { id: photoId },
+        include: { guest: true },
+      });
+
+      if (!photo) {
+        await answerCallbackQuery(callbackQuery.id, 'Photo not found', true);
+        return;
+      }
+
+      // Verify the user owns this photo
+      if (photo.guest.telegramUserId !== BigInt(user.id)) {
+        await answerCallbackQuery(
+          callbackQuery.id,
+          'You can only delete your own photos',
+          true
+        );
+        return;
+      }
+
+      // Delete from storage
+      await deletePhotoFromStorage(photo.storagePath);
+
+      // Delete from database
+      await prisma.photo.delete({
+        where: { id: photoId },
+      });
+
+      // Delete the message with the photo
+      await deleteMessage(chatId, messageId);
+
+      // Answer the callback query
+      await answerCallbackQuery(
+        callbackQuery.id,
+        'Photo deleted successfully ✅'
+      );
+
+      // Send confirmation message
+      await sendMessage(
+        chatId,
+        '✅ Photo has been deleted from the gallery.'
+      );
+    }
+  } catch (error) {
+    console.error('Error in handleCallbackQuery:', error);
+    await answerCallbackQuery(
+      callbackQuery.id,
+      'Sorry, there was an error processing your request',
+      true
+    );
+  }
+}
+
+/**
+ * Handles multiple photos sent together (media group)
+ */
+async function handleMediaGroup(
+  user: any,
+  mediaGroupId: string,
+  photos: any[],
+  caption: string | undefined,
+  chatId: number,
+  messageId: number
+) {
+  // If this is the first photo in the group, create a new entry
+  if (!mediaGroups.has(mediaGroupId)) {
+    // Send "uploading photo" action
+    await sendChatAction(chatId, 'upload_photo');
+
+    // Create a timeout to process all photos after 1 second
+    const timeout = setTimeout(async () => {
+      const group = mediaGroups.get(mediaGroupId);
+      if (group) {
+        await processMediaGroupPhotos(user, group.photos, chatId);
+        mediaGroups.delete(mediaGroupId);
+      }
+    }, 1000);
+
+    mediaGroups.set(mediaGroupId, {
+      photos: [{ photos, caption, messageId }],
+      timeout,
+    });
+  } else {
+    // Add this photo to the existing group
+    const group = mediaGroups.get(mediaGroupId)!;
+    group.photos.push({ photos, caption, messageId });
+  }
+}
+
+/**
+ * Process all photos in a media group
+ */
+async function processMediaGroupPhotos(
+  user: any,
+  photoMessages: any[],
+  chatId: number
+) {
+  try {
+    // Send "uploading photo" action
+    await sendChatAction(chatId, 'upload_photo');
+
+    let guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (!guest) {
+      guest = await prisma.guest.create({
+        data: {
+          telegramUserId: BigInt(user.id),
+          telegramUsername: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+      });
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const photoMsg of photoMessages) {
+      const result = await uploadSinglePhoto(
+        user,
+        guest,
+        photoMsg.photos,
+        photoMsg.caption
+      );
+
+      if (result.success) {
+        successCount++;
+        // Send photo to wedding group chat if configured
+        if (WEDDING_GROUP_CHAT_ID && result.uploadResult) {
+          const groupCaption = `📸 Photo from ${user.first_name}${photoMsg.caption ? `\n\n${photoMsg.caption}` : ''}`;
+          await sendPhoto(WEDDING_GROUP_CHAT_ID, result.uploadResult.publicUrl, groupCaption);
+        }
+      } else {
+        failCount++;
+      }
+    }
+
+    // Send summary message
+    let summaryMessage = '';
+    if (successCount > 0) {
+      summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n`;
+    }
+    if (failCount > 0) {
+      summaryMessage += `❌ ${failCount} photo(s) failed to upload.`;
+    }
+
+    await sendMessage(chatId, summaryMessage);
+  } catch (error) {
+    console.error('Error processing media group:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error uploading your photos.'
+    );
+  }
+}
+
+/**
+ * Uploads a single photo and returns the result
+ */
+async function uploadSinglePhoto(
+  user: any,
+  guest: any,
+  photos: any[],
+  caption: string | undefined
+): Promise<{ success: boolean; uploadResult?: any }> {
+  try {
+    const highestResPhoto = getHighestResolutionPhoto(photos);
+    if (!highestResPhoto) {
+      return { success: false };
+    }
+
+    const fileInfo = await getFileInfo(highestResPhoto.file_id);
+    if (!fileInfo || !fileInfo.file_path) {
+      return { success: false };
+    }
+
+    const fileBuffer = await downloadTelegramFile(fileInfo.file_path);
+    if (!fileBuffer) {
+      return { success: false };
+    }
+
+    const fileExtension = fileInfo.file_path.split('.').pop() || 'jpg';
+    const fileName = `photo-${user.id}-${Date.now()}.${fileExtension}`;
+    const uploadResult = await uploadPhotoToStorage(fileBuffer, fileName);
+
+    if (!uploadResult) {
+      return { success: false };
+    }
+
+    await prisma.photo.create({
+      data: {
+        guestId: guest.id,
+        storagePath: uploadResult.path,
+        publicUrl: uploadResult.publicUrl,
+        telegramFileId: highestResPhoto.file_id,
+        caption: caption,
+      },
+    });
+
+    return { success: true, uploadResult };
+  } catch (error) {
+    console.error('Error in uploadSinglePhoto:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Handles photo upload from guest (single photo)
+ */
+async function handlePhotoUpload(
+  user: any,
+  photos: any[],
+  caption: string | undefined,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    // Send "uploading photo" action
+    await sendChatAction(chatId, 'upload_photo');
+
+    // Get or create guest
+    let guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (!guest) {
+      try {
+        guest = await prisma.guest.create({
+          data: {
+            telegramUserId: BigInt(user.id),
+            telegramUsername: user.username,
+            firstName: user.first_name,
+            lastName: user.last_name,
+          },
+        });
+      } catch (error) {
+        console.error('Error auto-registering guest:', error);
+        await sendMessage(
+          chatId,
+          'Please send /start first to register!',
+          messageId
+        );
+        return;
+      }
+    }
+
+    const result = await uploadSinglePhoto(user, guest, photos, caption);
+
+    if (result.success && result.uploadResult) {
+      await sendMessage(
+        chatId,
+        '✅ Your photo has been added to the wedding gallery!',
+        messageId
+      );
+
+      // Send photo to wedding group chat if configured
+      if (WEDDING_GROUP_CHAT_ID) {
+        const groupCaption = `📸 Photo from ${user.first_name}${caption ? `\n\n${caption}` : ''}`;
+        await sendPhoto(WEDDING_GROUP_CHAT_ID, result.uploadResult.publicUrl, groupCaption);
+      }
+    } else {
+      await sendMessage(
+        chatId,
+        'Sorry, there was an error uploading your photo.',
+        messageId
+      );
+    }
+  } catch (error) {
+    console.error('Error in handlePhotoUpload:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error uploading your photo.',
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles photo sent as document (file)
+ */
+async function handleDocumentPhoto(
+  user: any,
+  document: any,
+  caption: string | undefined,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    // Send "uploading photo" action
+    await sendChatAction(chatId, 'upload_photo');
+
+    let guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (!guest) {
+      guest = await prisma.guest.create({
+        data: {
+          telegramUserId: BigInt(user.id),
+          telegramUsername: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+      });
+    }
+
+    const fileInfo = await getFileInfo(document.file_id);
+    if (!fileInfo || !fileInfo.file_path) {
+      await sendMessage(
+        chatId,
+        'Could not download the photo from Telegram.',
+        messageId
+      );
+      return;
+    }
+
+    const fileBuffer = await downloadTelegramFile(fileInfo.file_path);
+    if (!fileBuffer) {
+      await sendMessage(chatId, 'Could not download the photo.', messageId);
+      return;
+    }
+
+    const fileExtension = (document.file_name || fileInfo.file_path).split('.').pop() || 'jpg';
+    const fileName = `photo-${user.id}-${Date.now()}.${fileExtension}`;
+    const uploadResult = await uploadPhotoToStorage(fileBuffer, fileName);
+
+    if (!uploadResult) {
+      await sendMessage(chatId, 'Could not upload the photo.', messageId);
+      return;
+    }
+
+    await prisma.photo.create({
+      data: {
+        guestId: guest.id,
+        storagePath: uploadResult.path,
+        publicUrl: uploadResult.publicUrl,
+        telegramFileId: document.file_id,
+        caption: caption,
+      },
+    });
+
+    await sendMessage(
+      chatId,
+      '✅ Your photo has been added to the wedding gallery!',
+      messageId
+    );
+
+    // Send photo to wedding group chat if configured
+    if (WEDDING_GROUP_CHAT_ID) {
+      const groupCaption = `📸 Photo from ${user.first_name}${caption ? `\n\n${caption}` : ''}`;
+      await sendPhoto(WEDDING_GROUP_CHAT_ID, uploadResult.publicUrl, groupCaption);
+    }
+  } catch (error) {
+    console.error('Error in handleDocumentPhoto:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error uploading your photo.',
+      messageId
+    );
+  }
+}
