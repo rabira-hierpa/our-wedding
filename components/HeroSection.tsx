@@ -84,7 +84,7 @@ export default function HeroSection() {
 
         {/* Background Image Slideshow */}
         <AnimatePresence mode="wait">
-          {backgroundPhotos.length > 0 ? (
+          {backgroundPhotos.length > 100 ? (
             <motion.div
               key={currentPhotoIndex}
               initial={{ opacity: 0, scale: 1.1 }}

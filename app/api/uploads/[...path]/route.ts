@@ -13,17 +13,31 @@ export async function GET(
     const { path: pathSegments } = await params;
     const filename = pathSegments.join('/');
 
+    console.log('[Image Serve] Request for:', filename);
+    console.log('[Image Serve] Storage dir:', STORAGE_DIR);
+
     // Security: prevent directory traversal
     if (filename.includes('..') || filename.startsWith('/')) {
+      console.error('[Image Serve] Invalid filename detected:', filename);
       return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
     }
 
     const filePath = path.join(STORAGE_DIR, filename);
+    console.log('[Image Serve] Full path:', filePath);
+    console.log('[Image Serve] File exists?', existsSync(filePath));
 
     // Check if file exists
     if (!existsSync(filePath)) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+      console.error('[Image Serve] File not found:', filePath);
+      return NextResponse.json({
+        error: 'File not found',
+        path: filePath,
+        storageDir: STORAGE_DIR,
+        filename
+      }, { status: 404 });
     }
+
+    console.log('[Image Serve] File found, serving:', filename);
 
     // Read the file
     const fileBuffer = await readFile(filePath);
