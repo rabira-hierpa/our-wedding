@@ -2,8 +2,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-// For VPS deployment: photos stored in /var/www/wedding-photos or similar
-// For Docker/Coolify: use a volume mount
+// For Docker/Coolify: use /app/uploads (outside of Next.js public dir)
+// For local dev: use public/uploads
 const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'public', 'uploads');
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 

@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
+// Use /app/uploads in production (set via env var), public/uploads for local dev
 const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'public', 'uploads');
 
 export async function GET(
