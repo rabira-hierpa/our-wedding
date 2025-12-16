@@ -1,6 +1,7 @@
 import PhotoGallery from "@/components/PhotoGallery";
 import HeroSection from "@/components/HeroSection";
 import TelegramGuide from "@/components/TelegramGuide";
+import HighlightMoments from "@/components/HighlightMoments";
 import FooterSection from "@/components/FooterSection";
 
 export default function Home() {
@@ -11,6 +12,9 @@ export default function Home() {
 
       {/* Telegram Bot Guide Section */}
       <TelegramGuide />
+
+      {/* Highlight Moments Section */}
+      <HighlightMoments />
 
       {/* Photo Gallery */}
       <PhotoGallery />
