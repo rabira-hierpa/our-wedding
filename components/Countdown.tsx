@@ -11,7 +11,6 @@ interface TimeLeft {
 }
 
 export default function Countdown() {
-  const weddingDate = new Date("2026-01-10T00:00:00");
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
@@ -22,6 +21,8 @@ export default function Countdown() {
 
   useEffect(() => {
     setMounted(true);
+    const weddingDate = new Date("2026-01-10T00:00:00");
+    
     const calculateTimeLeft = () => {
       const now = new Date();
       const difference = weddingDate.getTime() - now.getTime();
