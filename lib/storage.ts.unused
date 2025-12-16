@@ -1,0 +1,63 @@
+import { supabaseAdmin } from '@/lib/supabase';
+
+/**
+ * Uploads a photo to Supabase Storage
+ */
+export async function uploadPhotoToStorage(
+  fileBuffer: Buffer,
+  fileName: string
+): Promise<{ path: string; publicUrl: string } | null> {
+  try {
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `${timestamp}-${sanitizedFileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabaseAdmin.storage
+      .from('wedding-photos')
+      .upload(storagePath, fileBuffer, {
+        contentType: 'image/jpeg',
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Error uploading to Supabase Storage:', error);
+      return null;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('wedding-photos')
+      .getPublicUrl(data.path);
+
+    return {
+      path: data.path,
+      publicUrl: publicUrlData.publicUrl,
+    };
+  } catch (error) {
+    console.error('Error in uploadPhotoToStorage:', error);
+    return null;
+  }
+}
+
+/**
+ * Deletes a photo from Supabase Storage
+ */
+export async function deletePhotoFromStorage(path: string): Promise<boolean> {
+  try {
+    const { error } = await supabaseAdmin.storage
+      .from('wedding-photos')
+      .remove([path]);
+
+    if (error) {
+      console.error('Error deleting from Supabase Storage:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in deletePhotoFromStorage:', error);
+    return false;
+  }
+}
