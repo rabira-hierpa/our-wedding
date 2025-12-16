@@ -34,8 +34,8 @@ export async function uploadPhotoToStorage(
     // Write file to disk
     await writeFile(fullPath, fileBuffer);
 
-    // Generate public URL
-    const publicUrl = `${BASE_URL}/uploads/${storagePath}`;
+    // Generate public URL - use /api/uploads/ for Next.js standalone mode
+    const publicUrl = `${BASE_URL}/api/uploads/${storagePath}`;
 
     return {
       path: storagePath,

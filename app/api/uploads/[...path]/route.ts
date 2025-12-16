@@ -7,13 +7,14 @@ const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'public'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ filename: string }> }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const { filename } = await params;
+    const { path: pathSegments } = await params;
+    const filename = pathSegments.join('/');
 
     // Security: prevent directory traversal
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    if (filename.includes('..') || filename.startsWith('/')) {
       return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
     }
 
