@@ -1,61 +1,116 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Sparkles, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown, SkipForward } from "lucide-react";
 import Countdown from "./Countdown";
+import Image from "next/image";
 
 /**
- * Hero Section - Champagne elegance with landscape background and countdown
+ * Hero Section - Dynamic background with uploaded photos and biblical verses
  */
 export default function HeroSection() {
+  const [showCountdown, setShowCountdown] = useState(true);
+  const [backgroundPhotos, setBackgroundPhotos] = useState<string[]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Biblical verses about love and marriage
+  const verses = [
+    {
+      text: "Give thanks to the LORD, for he is good. His love endures forever.",
+      reference: "Psalm 136:1",
+    },
+    {
+      text: "Love is patient, love is kind. It does not envy, it does not boast.",
+      reference: "1 Corinthians 13:4",
+    },
+    {
+      text: "Two are better than one, because they have a good return for their labor.",
+      reference: "Ecclesiastes 4:9",
+    },
+  ];
+
+  const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
+
+  // Fetch background photos
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        const response = await fetch("/api/photos");
+        if (response.ok) {
+          const data = await response.json();
+          const photoUrls = data.photos.map((p: any) => p.publicUrl);
+          setBackgroundPhotos(photoUrls);
+        }
+      } catch (error) {
+        console.error("Error fetching photos:", error);
+      }
+    };
+    fetchPhotos();
+  }, []);
+
+  // Rotate background photos every 5 seconds
+  useEffect(() => {
+    if (backgroundPhotos.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentPhotoIndex((prev) => (prev + 1) % backgroundPhotos.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [backgroundPhotos]);
+
+  // Rotate verses every 8 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentVerseIndex((prev) => (prev + 1) % verses.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [verses.length]);
+
+  const scrollToGallery = () => {
+    setShowCountdown(false);
+    // Smooth scroll to gallery section
+    setTimeout(() => {
+      window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+    }, 100);
+  };
+
   return (
-    <section className="relative min-h-[100vh] flex items-center justify-center overflow-hidden">
-      {/* Landscape Background with Overlay */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Dynamic Background with Slideshow */}
       <div className="absolute inset-0 z-0">
         {/* Gradient overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-champagne-900/70 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70 z-10" />
 
-        {/* Background Image - You can replace this URL with your actual landscape image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1519167758481-83f29da8c6b3?q=80&w=2000')`,
-            filter: "brightness(0.85) saturate(1.1)",
-          }}
-        />
-      </div>
-      {/* Floating sparkles animation */}
-      <div className="absolute inset-0 overflow-hidden z-10 pointer-events-none">
-        {[...Array(15)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            initial={{
-              x:
-                typeof window !== "undefined"
-                  ? Math.random() * window.innerWidth
-                  : Math.random() * 1000,
-              y: typeof window !== "undefined" ? window.innerHeight + 100 : 900,
-              opacity: 0,
-            }}
-            animate={{
-              y: -100,
-              x:
-                typeof window !== "undefined"
-                  ? Math.random() * window.innerWidth
-                  : Math.random() * 1000,
-              opacity: [0, 1, 0.5, 1, 0],
-            }}
-            transition={{
-              duration: 20 + Math.random() * 15,
-              repeat: Infinity,
-              delay: Math.random() * 5,
-              ease: "linear",
-            }}
-          >
-            <Sparkles className="w-6 h-6 text-champagne-300" />
-          </motion.div>
-        ))}
+        {/* Background Image Slideshow */}
+        <AnimatePresence mode="wait">
+          {backgroundPhotos.length > 0 ? (
+            <motion.div
+              key={currentPhotoIndex}
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 1.5 }}
+              className="absolute inset-0"
+            >
+              <Image
+                src={backgroundPhotos[currentPhotoIndex]}
+                alt="Wedding background"
+                fill
+                className="object-cover"
+                priority
+                unoptimized
+              />
+            </motion.div>
+          ) : (
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{
+                backgroundImage: `url('https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000')`,
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Hero content */}
@@ -65,87 +120,111 @@ export default function HeroSection() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, ease: "easeOut" }}
         >
-          {/* Date Badge */}
-          <motion.div
-            className="inline-flex items-center gap-2 bg-champagne-100/90 backdrop-blur-md px-6 py-3 rounded-full mb-8 border-2 border-gold-400/50 shadow-xl"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-          >
-            <Calendar className="w-5 h-5 text-gold-600" />
-            <span className="text-gold-700 font-semibold tracking-wide">
-              January 10, 2026
-            </span>
-          </motion.div>
-
+          {/* Main Title */}
           <motion.h1
-            className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 drop-shadow-2xl"
-            initial={{ opacity: 0, y: -20 }}
+            className="font-script text-6xl md:text-8xl lg:text-9xl font-bold text-white mb-8 drop-shadow-2xl"
+            initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.4 }}
+            transition={{ duration: 1, delay: 0.3 }}
           >
-            A Day to Remember
+            Rab & Lee
           </motion.h1>
 
           <motion.div
-            className="w-32 h-1 bg-gradient-to-r from-transparent via-champagne-300 to-transparent mx-auto mb-8"
+            className="w-32 h-1 bg-gradient-to-r from-transparent via-gold-400 to-transparent mx-auto mb-8"
             initial={{ width: 0 }}
             animate={{ width: "8rem" }}
             transition={{ duration: 1.2, delay: 0.6 }}
           />
 
-          <motion.p
-            className="text-xl md:text-3xl text-champagne-100 font-light tracking-wide mb-12 drop-shadow-lg"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.8 }}
-          >
-            Celebrating Love & Unity
-          </motion.p>
+          {/* Biblical Verse */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentVerseIndex}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.8 }}
+              className="mb-12"
+            >
+              <p className="font-script text-2xl md:text-4xl text-gold-200 italic mb-3 leading-relaxed">
+                &ldquo;{verses[currentVerseIndex].text}&rdquo;
+              </p>
+              <p className="text-champagne-300 text-sm md:text-base font-light tracking-wider">
+                — {verses[currentVerseIndex].reference}
+              </p>
+            </motion.div>
+          </AnimatePresence>
 
-          {/* Countdown Timer */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1 }}
-            className="mb-12"
-          >
-            <h2 className="text-lg md:text-xl text-champagne-200 font-semibold mb-6 uppercase tracking-widest">
-              Counting Down to Forever
-            </h2>
-            <Countdown />
-          </motion.div>
+          {/* Countdown Section */}
+          <AnimatePresence>
+            {showCountdown && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, height: 0 }}
+                transition={{ duration: 0.6 }}
+                className="mb-8"
+              >
+                <h2 className="font-script text-2xl md:text-3xl text-gold-300 mb-6">
+                  Counting Down to Forever
+                </h2>
+                <Countdown />
 
+                {/* Skip Button */}
+                <motion.button
+                  onClick={scrollToGallery}
+                  className="mt-8 inline-flex items-center gap-2 px-8 py-3 bg-white/10 backdrop-blur-md border-2 border-gold-400/50 rounded-full text-white font-semibold hover:bg-white/20 hover:border-gold-400 transition-all duration-300 group"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 2 }}
+                >
+                  <SkipForward className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <span className="font-script text-lg">Skip to Gallery</span>
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Subtitle */}
           <motion.p
-            className="text-base md:text-lg text-white/90 max-w-2xl mx-auto leading-relaxed"
+            className="font-script text-xl md:text-2xl text-champagne-200 max-w-2xl mx-auto leading-relaxed"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 1.2 }}
           >
-            Join us in capturing the magic of our special day through shared
-            moments
+            Join us in capturing the magic of our special day
           </motion.p>
         </motion.div>
+      </div>
 
-        {/* Scroll indicator */}
+      {/* Scroll indicator - Fixed positioning */}
+      <motion.button
+        onClick={scrollToGallery}
+        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 cursor-pointer z-30"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2 }}
+        whileHover={{ scale: 1.1 }}
+      >
         <motion.div
-          className="absolute bottom-12 left-1/2 transform -translate-x-1/2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, y: [0, 10, 0] }}
-          transition={{
-            opacity: { delay: 2 },
-            y: { duration: 2, repeat: Infinity },
-          }}
+          animate={{ y: [0, 12, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="flex flex-col items-center gap-2 text-champagne-300 hover:text-gold-400 transition-colors"
         >
-          <div className="w-6 h-10 border-2 border-champagne-300 rounded-full flex justify-center backdrop-blur-sm bg-white/10">
+          <span className="font-script text-sm tracking-widest">Scroll</span>
+          <div className="w-8 h-12 border-2 border-current rounded-full flex justify-center backdrop-blur-sm bg-white/5 p-2">
             <motion.div
-              className="w-1.5 h-1.5 bg-champagne-300 rounded-full mt-2"
               animate={{ y: [0, 16, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
-            />
+            >
+              <ChevronDown className="w-4 h-4" />
+            </motion.div>
           </div>
         </motion.div>
-      </div>
+      </motion.button>
     </section>
   );
 }
