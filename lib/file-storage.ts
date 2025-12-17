@@ -26,8 +26,9 @@ export async function uploadPhotoToStorage(
     await ensureStorageDir();
 
     const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8); // Add random string to prevent collisions
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const storagePath = `${timestamp}-${sanitizedFileName}`;
+    const storagePath = `${timestamp}-${random}-${sanitizedFileName}`;
     const fullPath = path.join(STORAGE_DIR, storagePath);
 
     // Write file to disk
