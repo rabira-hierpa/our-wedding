@@ -46,8 +46,13 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/.next ./.next
 COPY --from=deps /app/node_modules ./node_modules
 
-# Create uploads directory for persistent storage
-RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Create the /uploads directory that will be volume-mounted
+RUN mkdir -p /uploads && chown -R nextjs:nodejs /uploads
+RUN chown -R nextjs:nodejs /app/public
 
 USER nextjs
 
@@ -55,6 +60,8 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV STORAGE_DIR=/uploads
 
-# Run Next.js server (npm start runs next start)
+# Use entrypoint to create symlink, then run npm start
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "start"]
