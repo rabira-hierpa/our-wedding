@@ -2,8 +2,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-// For Docker/Coolify: use /app/uploads (outside of Next.js public dir)
-// For local dev: use public/uploads
+// Storage directory - Next.js serves files from public/ automatically
 const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'public', 'uploads');
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 

@@ -20,11 +20,11 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Build Next.js
+# Build Next.js (regular build, not standalone)
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Production image
+# Production image - Regular Next.js server
 FROM base AS runner
 WORKDIR /app
 
@@ -34,35 +34,27 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy package files for migrations
+# Install production dependencies
+RUN apk add --no-cache libc6-compat openssl
+
+# Copy everything needed for Next.js to run
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json* ./package-lock.json
+COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-
-# Install production dependencies (needed for Prisma CLI)
-RUN apk add --no-cache libc6-compat openssl
+COPY --from=builder /app/.next ./.next
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy built files
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy Prisma generated client
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# Create uploads directory outside of public (for persistent storage)
-RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
+# Create uploads directory for persistent storage
+RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 
 USER nextjs
-
-# Set default storage directory
-ENV STORAGE_DIR=/app/uploads
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run Next.js server (npm start runs next start)
+CMD ["npm", "start"]

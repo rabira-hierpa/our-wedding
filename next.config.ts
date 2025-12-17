@@ -9,8 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enable static file serving from public/uploads
-  output: 'standalone',
+  // Use regular SSR mode instead of standalone for better static file serving
 };
 
 export default nextConfig;
