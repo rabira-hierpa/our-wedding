@@ -34,8 +34,8 @@ export async function uploadPhotoToStorage(
     // Write file to disk
     await writeFile(fullPath, fileBuffer);
 
-    // Generate public URL - middleware will rewrite /uploads/ to /api/uploads/
-    const publicUrl = `${BASE_URL}/uploads/${storagePath}`;
+    // Generate public URL - use API route to serve images
+    const publicUrl = `${BASE_URL}/api/uploads/${storagePath}`;
 
     return {
       path: storagePath,
