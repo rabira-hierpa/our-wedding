@@ -1,18 +1,20 @@
 #!/bin/sh
 set -e
 
-# Remove the uploads directory if it exists and is empty
-# (it was created during build but we want to symlink to the volume)
-if [ -d "/app/public/uploads" ] && [ ! -L "/app/public/uploads" ]; then
-    rm -rf /app/public/uploads
-fi
+echo "🚀 Starting wedding photo gallery..."
 
-# Create symlink from volume mount to public/uploads
-# The volume will be mounted at /uploads by Coolify
-if [ ! -e "/app/public/uploads" ]; then
-    ln -s /uploads /app/public/uploads
-    echo "✓ Created symlink: /app/public/uploads -> /uploads"
-fi
+# Ensure uploads directory exists and has correct permissions
+mkdir -p /app/public/uploads
+chmod 755 /app/public/uploads
 
-# Execute the main command
+echo "✓ Uploads directory ready: /app/public/uploads"
+
+# Run Prisma migrations
+echo "📦 Running database migrations..."
+npx prisma migrate deploy || echo "⚠️  Migration failed or no migrations to run"
+
+echo "✓ Database ready"
+
+# Execute the main command (should be "node server.js" for standalone)
+echo "🌐 Starting Next.js server..."
 exec "$@"

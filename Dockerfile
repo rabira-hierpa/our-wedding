@@ -20,11 +20,11 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Build Next.js (regular build, not standalone)
+# Build Next.js with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Production image - Regular Next.js server
+# Production image - Standalone Next.js server
 FROM base AS runner
 WORKDIR /app
 
@@ -37,22 +37,23 @@ RUN adduser --system --uid 1001 nextjs
 # Install production dependencies
 RUN apk add --no-cache libc6-compat openssl
 
-# Copy everything needed for Next.js to run
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json* ./package-lock.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
+# Copy standalone server
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.next ./.next
-COPY --from=deps /app/node_modules ./node_modules
 
+# Create uploads directory and set permissions
+RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+
+# Copy entrypoint script
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create the /uploads directory that will be volume-mounted
 RUN mkdir -p /uploads && chown -R nextjs:nodejs /uploads
-RUN chown -R nextjs:nodejs /app/public
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -60,8 +61,8 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV STORAGE_DIR=/uploads
+ENV STORAGE_DIR=/app/public/uploads
 
-# Use entrypoint to create symlink, then run npm start
+# Use entrypoint to run migrations, then start the standalone server
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
