@@ -194,11 +194,12 @@ async function handleRegistration(
 ) {
   try {
     // Check if user already exists
-    const existingGuest = await prisma.guest.findUnique({
+    const existingGuest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 
-    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://your-wedding-site.com';
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
 
     if (existingGuest) {
       await sendMessage(
@@ -252,7 +253,7 @@ async function handleHelp(chatId: number, messageId: number) {
  */
 async function handleMyPhotos(user: any, chatId: number, messageId: number) {
   try {
-    const guest = await prisma.guest.findUnique({
+    const guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
       include: {
         photos: {
@@ -321,7 +322,7 @@ async function handleDeletePhoto(
 
     const photoNumber = parseInt(parts[1]);
 
-    const guest = await prisma.guest.findUnique({
+    const guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
       include: {
         photos: {
@@ -486,7 +487,7 @@ async function handleWishCommand(
     }
 
     // Ensure guest is registered
-    const guest = await prisma.guest.findUnique({
+    const guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 
@@ -507,7 +508,7 @@ async function handleWishCommand(
       data: {
         guestId:
           guest?.id ||
-          (await prisma.guest.findUnique({
+          (await prisma.guest.findFirst({
             where: { telegramUserId: BigInt(user.id) },
           }))!.id,
         message: wish,
@@ -548,7 +549,7 @@ async function handleJoinGroupCommand(
     }
 
     // Check if user is already in the group
-    const guest = await prisma.guest.findUnique({
+    const guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 
@@ -611,11 +612,17 @@ async function handleGroupJoinConfirmation(
       return;
     }
 
-    // Update guest status
-    await prisma.guest.update({
+    // Update guest status - find guest first, then update by ID
+    const guestToUpdate = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
-      data: { inWeddingGroup: true },
     });
+
+    if (guestToUpdate) {
+      await prisma.guest.update({
+        where: { id: guestToUpdate.id },
+        data: { inWeddingGroup: true },
+      });
+    }
 
     // Delete the confirmation message
     await deleteMessage(chatId, messageId);
@@ -685,7 +692,7 @@ async function processMediaGroupPhotos(
     // Send "uploading photo" action
     await sendChatAction(chatId, "upload_photo");
 
-    let guest = await prisma.guest.findUnique({
+    let guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 
@@ -816,7 +823,7 @@ async function handlePhotoUpload(
     await sendChatAction(chatId, "upload_photo");
 
     // Get or create guest
-    let guest = await prisma.guest.findUnique({
+    let guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 
@@ -901,7 +908,7 @@ async function handleDocumentPhoto(
     // Send "uploading photo" action
     await sendChatAction(chatId, "upload_photo");
 
-    let guest = await prisma.guest.findUnique({
+    let guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
     });
 

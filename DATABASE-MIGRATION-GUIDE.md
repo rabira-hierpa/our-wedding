@@ -34,17 +34,20 @@ exec "$@"
 ```
 
 **What happens:**
+
 1. Container starts
 2. Runs `npx prisma migrate deploy`
 3. Applies all pending migrations from `prisma/migrations/`
 4. Starts the Next.js application
 
 **Check logs:**
+
 ```bash
 docker logs <container-name>
 ```
 
 You should see:
+
 ```
 🚀 Starting wedding photo gallery...
 📦 Running database migrations...
@@ -67,6 +70,7 @@ npx prisma migrate dev --name descriptive_migration_name
 ```
 
 This command will:
+
 - Generate a new migration file in `prisma/migrations/`
 - Apply the migration to your development database
 - Regenerate Prisma Client
@@ -74,6 +78,7 @@ This command will:
 ### Example: Adding a New Field
 
 1. Edit `prisma/schema.prisma`:
+
    ```prisma
    model Photo {
      id          String   @id @default(cuid())
@@ -83,6 +88,7 @@ This command will:
    ```
 
 2. Create migration:
+
    ```bash
    npx prisma migrate dev --name add_photo_description
    ```
@@ -112,12 +118,13 @@ npx prisma migrate reset
 ### First-Time Deployment
 
 1. **Set DATABASE_URL environment variable**
+
    ```env
    DATABASE_URL=postgresql://user:password@host:5432/wedding_db
    ```
 
 2. **Deploy the application**
-   
+
    Migrations run automatically on container start. No manual intervention needed!
 
 3. **Verify migrations**
@@ -140,10 +147,12 @@ When you push code with new migrations:
 For production systems that can't have downtime:
 
 1. **Backward-compatible migrations first**
+
    - Add new columns as optional (`String?`)
    - Don't drop columns yet
 
 2. **Deploy application code**
+
    - Update application to use new fields
    - Keep compatibility with old schema
 
@@ -219,6 +228,7 @@ npx prisma migrate resolve --applied "20241217000000_migration_name"
 ### Issue: Foreign Key Constraint Violation
 
 **Error:**
+
 ```
 Invalid `prisma.like.create()` invocation:
 Foreign key constraint violated: `likes_guest_id_fkey (index)`
@@ -227,12 +237,14 @@ Foreign key constraint violated: `likes_guest_id_fkey (index)`
 **Cause:** Trying to create a record with a foreign key that doesn't exist.
 
 **Solution:**
+
 1. Verify the related record exists:
+
    ```typescript
    const guest = await prisma.guest.findUnique({
-     where: { id: guestId }
+     where: { id: guestId },
    });
-   
+
    if (!guest) {
      throw new Error("Guest not found");
    }
@@ -243,23 +255,27 @@ Foreign key constraint violated: `likes_guest_id_fkey (index)`
 ### Issue: Migration Fails on Startup
 
 **Symptoms:**
+
 - Container starts but migrations fail
 - Application doesn't start properly
 
 **Debugging:**
 
 1. **Check container logs:**
+
    ```bash
    docker logs <container-name>
    ```
 
 2. **Test database connection:**
+
    ```bash
    docker exec -it <container-name> sh
    npx prisma db execute --stdin <<< "SELECT 1;"
    ```
 
 3. **Check migration status:**
+
    ```bash
    docker exec -it <container-name> npx prisma migrate status
    ```
@@ -272,6 +288,7 @@ Foreign key constraint violated: `likes_guest_id_fkey (index)`
 ### Issue: Schema Drift Detected
 
 **Error:**
+
 ```
 Drift detected: Your database schema is not in sync with your migration history.
 ```
@@ -279,12 +296,14 @@ Drift detected: Your database schema is not in sync with your migration history.
 **Cause:** Database was modified outside of Prisma migrations.
 
 **Solution (Development):**
+
 ```bash
 # Reset and reapply all migrations
 npx prisma migrate reset
 ```
 
 **Solution (Production):**
+
 ```bash
 # Create a new migration to reconcile differences
 npx prisma migrate dev --name reconcile_drift
@@ -295,10 +314,12 @@ npx prisma migrate dev --name reconcile_drift
 ### Issue: Migration Files Missing
 
 **Symptoms:**
+
 - Migrations folder is empty
 - Database has tables but no migration history
 
 **Solution:**
+
 ```bash
 # Generate a baseline migration
 npx prisma migrate diff \
@@ -313,10 +334,12 @@ npx prisma migrate resolve --applied "0_init"
 ### Issue: Conflicting Migrations
 
 **Symptoms:**
+
 - Multiple developers created migrations simultaneously
 - Git merge conflicts in migration files
 
 **Solution:**
+
 1. Keep all migration files
 2. Ensure they're applied in chronological order (by timestamp in filename)
 3. If conflicts exist in the same migration, create a new migration to reconcile
@@ -328,12 +351,14 @@ npx prisma migrate resolve --applied "0_init"
 ### 1. Always Use Descriptive Names
 
 ✅ Good:
+
 ```bash
 npx prisma migrate dev --name add_wishes_likes_and_group_features
 npx prisma migrate dev --name add_photo_description_field
 ```
 
 ❌ Bad:
+
 ```bash
 npx prisma migrate dev --name update
 npx prisma migrate dev --name fix
@@ -342,6 +367,7 @@ npx prisma migrate dev --name fix
 ### 2. Never Modify Existing Migrations
 
 Once a migration is applied to production:
+
 - Never edit the migration file
 - Create a new migration to make changes
 - Use `prisma migrate resolve` only for fixing failed states
@@ -376,6 +402,7 @@ Migrations are automatically wrapped in transactions by Prisma. If a migration f
 ### 6. Keep Migrations Small
 
 Instead of one large migration:
+
 ```sql
 -- Too much in one migration
 ALTER TABLE photos ADD COLUMN description TEXT;
@@ -385,6 +412,7 @@ ALTER TABLE users ADD COLUMN verified BOOLEAN;
 ```
 
 Break into smaller migrations:
+
 - Migration 1: Add photo description
 - Migration 2: Add photo rating
 - Migration 3: Create comments table
@@ -437,8 +465,8 @@ CREATE TABLE "wishes" (
 CREATE INDEX "wishes_guestId_idx" ON "wishes"("guestId");
 
 -- AddForeignKey
-ALTER TABLE "wishes" ADD CONSTRAINT "wishes_guestId_fkey" 
-    FOREIGN KEY ("guestId") REFERENCES "guests"("id") 
+ALTER TABLE "wishes" ADD CONSTRAINT "wishes_guestId_fkey"
+    FOREIGN KEY ("guestId") REFERENCES "guests"("id")
     ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
@@ -446,14 +474,14 @@ ALTER TABLE "wishes" ADD CONSTRAINT "wishes_guestId_fkey"
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Create migration (dev) | `npx prisma migrate dev --name NAME` |
-| Apply migrations (prod) | `npx prisma migrate deploy` |
-| Check status | `npx prisma migrate status` |
-| Reset database | `npx prisma migrate reset` |
-| Generate Prisma Client | `npx prisma generate` |
-| View in Prisma Studio | `npx prisma studio` |
+| Task                    | Command                              |
+| ----------------------- | ------------------------------------ |
+| Create migration (dev)  | `npx prisma migrate dev --name NAME` |
+| Apply migrations (prod) | `npx prisma migrate deploy`          |
+| Check status            | `npx prisma migrate status`          |
+| Reset database          | `npx prisma migrate reset`           |
+| Generate Prisma Client  | `npx prisma generate`                |
+| View in Prisma Studio   | `npx prisma studio`                  |
 
 ---
 

@@ -19,10 +19,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!photo) {
-      return NextResponse.json(
-        { error: "Photo not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Photo not found" }, { status: 404 });
     }
 
     // For web users, create a guest if it doesn't exist

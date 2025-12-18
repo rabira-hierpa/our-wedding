@@ -115,7 +115,7 @@ Save this as `Dockerfile` in your project root.
 If not using Coolify's built-in Docker build:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -151,11 +151,13 @@ volumes:
 ## Step 4: Deploy with Coolify
 
 1. **Create New Project**
+
    - Go to Coolify dashboard
    - Click "Add Resource" → "Application"
    - Choose "Docker Compose" or "Dockerfile"
 
 2. **Connect Git Repository**
+
    - Link your GitHub/GitLab repository
    - Select the branch (e.g., `main`)
 
@@ -176,10 +178,12 @@ volumes:
 4. **Configure Persistent Storage**
 
    In Coolify, add a volume mount:
+
    - Source: `/var/lib/coolify/wedding-photos`
    - Destination: `/app/public/uploads`
 
 5. **Set Up Domain**
+
    - Add your domain in Coolify
    - Enable SSL/TLS (Let's Encrypt)
    - Configure reverse proxy
@@ -300,11 +304,13 @@ server {
 ## Storage Estimates
 
 For 1K photos at ~2 MB each:
+
 - **Storage needed**: ~2 GB for photos
 - **Database size**: ~10-20 MB for metadata
 - **Total**: ~2.5 GB (plenty of room on most VPS)
 
 **VPS Requirements:**
+
 - **Minimum**: 1 GB RAM, 1 CPU, 10 GB storage
 - **Recommended**: 2 GB RAM, 2 CPU, 20 GB storage
 
@@ -369,11 +375,13 @@ SELECT pg_size_pretty(pg_database_size('wedding_gallery'));
 ### Photos Not Uploading
 
 1. Check volume mount:
+
    ```bash
    docker inspect <container-name> | grep Mounts -A 20
    ```
 
 2. Check permissions:
+
    ```bash
    ls -la /var/lib/coolify/wedding-photos
    ```
@@ -387,6 +395,7 @@ SELECT pg_size_pretty(pg_database_size('wedding_gallery'));
 
 1. Check DATABASE_URL format
 2. Verify PostgreSQL is running:
+
    ```bash
    docker ps | grep postgres
    ```
@@ -399,11 +408,13 @@ SELECT pg_size_pretty(pg_database_size('wedding_gallery'));
 ### Out of Disk Space
 
 1. Check photo directory size:
+
    ```bash
    du -sh /var/lib/coolify/wedding-photos
    ```
 
 2. Clean old backups:
+
    ```bash
    find /backups -name "db_*.sql" -mtime +30 -delete
    ```
@@ -416,12 +427,14 @@ SELECT pg_size_pretty(pg_database_size('wedding_gallery'));
 ## Cost Comparison
 
 ### VPS (Hostinger or Similar)
+
 - **Cost**: $5-10/month
 - **Storage**: 50-100 GB
 - **1K photos**: No problem
 - **10K photos**: Still fine
 
 ### Supabase
+
 - **Free tier**: 1 GB storage (not enough)
 - **Pro tier**: $25/month
 - **For 3 GB photos**: $25/month
@@ -477,7 +490,7 @@ Add image compression to reduce storage:
 
 ```typescript
 // In lib/file-storage.ts
-import sharp from 'sharp';
+import sharp from "sharp";
 
 export async function uploadPhotoToStorage(
   fileBuffer: Buffer,
@@ -486,7 +499,7 @@ export async function uploadPhotoToStorage(
   // Compress image
   const compressedBuffer = await sharp(fileBuffer)
     .jpeg({ quality: 85 })
-    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+    .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
     .toBuffer();
 
   // ... rest of upload logic

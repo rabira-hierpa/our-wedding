@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Calendar, Heart } from "lucide-react";
+import {
+  X,
+  User,
+  Calendar,
+  Heart,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type { PhotoWithGuest } from "@/types/database";
 import AnimatedSection from "./AnimatedSection";
 import QuoteCard from "./QuoteCard";
@@ -41,12 +49,15 @@ export default function PhotoGallery() {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithLikes | null>(
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
     null
   );
   const [selectedWish, setSelectedWish] = useState<Wish | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
+
+  const selectedPhoto =
+    selectedPhotoIndex !== null ? photos[selectedPhotoIndex] : null;
 
   useEffect(() => {
     fetchGalleryData();
@@ -66,6 +77,42 @@ export default function PhotoGallery() {
     const shuffled = combined.sort(() => Math.random() - 0.5);
     setGalleryItems(shuffled);
   }, [photos, wishes]);
+
+  // Keyboard navigation
+  const navigatePhoto = useCallback(
+    (direction: "prev" | "next") => {
+      if (selectedPhotoIndex === null || photos.length === 0) return;
+
+      if (direction === "prev") {
+        setSelectedPhotoIndex((prev) =>
+          prev === null || prev === 0 ? photos.length - 1 : prev - 1
+        );
+      } else {
+        setSelectedPhotoIndex((prev) =>
+          prev === null || prev === photos.length - 1 ? 0 : prev + 1
+        );
+      }
+    },
+    [selectedPhotoIndex, photos.length]
+  );
+
+  // Keyboard event handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedPhoto) {
+        if (e.key === "Escape") {
+          setSelectedPhotoIndex(null);
+        } else if (e.key === "ArrowLeft") {
+          navigatePhoto("prev");
+        } else if (e.key === "ArrowRight") {
+          navigatePhoto("next");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPhoto, navigatePhoto]);
 
   const fetchGalleryData = async () => {
     try {
@@ -141,24 +188,32 @@ export default function PhotoGallery() {
             return photo;
           })
         );
-
-        // Update selected photo if it's the one being liked
-        if (selectedPhoto?.id === photoId) {
-          setSelectedPhoto((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  likeCount: data.liked
-                    ? (prev.likeCount || 0) + 1
-                    : Math.max((prev.likeCount || 0) - 1, 0),
-                }
-              : null
-          );
-        }
       }
     } catch (err) {
       console.error("Error toggling like:", err);
     }
+  };
+
+  const handleDownload = async (photo: PhotoWithLikes) => {
+    try {
+      const response = await fetch(photo.publicUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `wedding-photo-${photo.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading photo:", error);
+    }
+  };
+
+  const openPhotoModal = (photo: PhotoWithLikes) => {
+    const index = photos.findIndex((p) => p.id === photo.id);
+    setSelectedPhotoIndex(index);
   };
 
   if (loading) {
@@ -184,9 +239,8 @@ export default function PhotoGallery() {
               </h2>
               <p className="text-xl text-gold-700 font-light">
                 {photos.length} precious{" "}
-                {photos.length === 1 ? "moment" : "moments"} &{" "}
-                {wishes.length} heartfelt{" "}
-                {wishes.length === 1 ? "wish" : "wishes"}
+                {photos.length === 1 ? "moment" : "moments"} & {wishes.length}{" "}
+                heartfelt {wishes.length === 1 ? "wish" : "wishes"}
               </p>
             </div>
           </AnimatedSection>
@@ -214,9 +268,9 @@ export default function PhotoGallery() {
                     className="relative cursor-pointer group overflow-hidden rounded-2xl shadow-lg"
                     whileHover={{ y: -8, scale: 1.02 }}
                     transition={{ duration: 0.3 }}
-                    onClick={() => setSelectedPhoto(item.data)}
-                    onHoverStart={() => setHoveredId(item.data.id)}
-                    onHoverEnd={() => setHoveredId(null)}
+                    onClick={() => openPhotoModal(item.data)}
+                    onMouseEnter={() => setHoveredId(item.data.id)}
+                    onMouseLeave={() => setHoveredId(null)}
                   >
                     <Image
                       src={item.data.publicUrl}
@@ -231,16 +285,6 @@ export default function PhotoGallery() {
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       initial={false}
-                    >
-                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                      <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={
-                          hoveredId === photo.id
-                            ? { y: 0, opacity: 1 }
-                            : { y: 20, opacity: 0 }
-                        }
-                        transition={{ duration: 0.3 }}
                     >
                       <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                         <motion.div
@@ -266,7 +310,9 @@ export default function PhotoGallery() {
                           )}
                           <div className="flex items-center gap-2 text-xs text-gray-300">
                             <Calendar className="w-3 h-3" />
-                            {new Date(item.data.uploadedAt).toLocaleDateString()}
+                            {new Date(
+                              item.data.uploadedAt
+                            ).toLocaleDateString()}
                           </div>
                         </motion.div>
                       </div>
@@ -313,7 +359,7 @@ export default function PhotoGallery() {
         </div>
       </section>
 
-      {/* Enhanced Lightbox Modal */}
+      {/* Enhanced Lightbox Modal with Navigation */}
       <AnimatePresence>
         {selectedPhoto && (
           <motion.div
@@ -322,7 +368,7 @@ export default function PhotoGallery() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setSelectedPhoto(null)}
+            onClick={() => setSelectedPhotoIndex(null)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -332,16 +378,56 @@ export default function PhotoGallery() {
               className="relative max-w-6xl w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close button */}
-              <motion.button
-                className="absolute -top-12 right-0 text-white hover:text-champagne-300 transition-colors z-10 flex items-center gap-2"
-                onClick={() => setSelectedPhoto(null)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <span className="text-sm font-semibold">Close</span>
-                <X className="w-8 h-8" />
-              </motion.button>
+              {/* Navigation Buttons */}
+              {photos.length > 1 && (
+                <>
+                  <motion.button
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-3 text-white transition-colors z-10"
+                    onClick={() => navigatePhoto("prev")}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <ChevronLeft className="w-8 h-8" />
+                  </motion.button>
+                  <motion.button
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-3 text-white transition-colors z-10"
+                    onClick={() => navigatePhoto("next")}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <ChevronRight className="w-8 h-8" />
+                  </motion.button>
+                </>
+              )}
+
+              {/* Close and Download buttons */}
+              <div className="absolute -top-12 right-0 flex items-center gap-4">
+                <motion.button
+                  className="text-white hover:text-champagne-300 transition-colors flex items-center gap-2"
+                  onClick={() => handleDownload(selectedPhoto)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Download className="w-6 h-6" />
+                  <span className="text-sm font-semibold">Download</span>
+                </motion.button>
+                <motion.button
+                  className="text-white hover:text-champagne-300 transition-colors flex items-center gap-2"
+                  onClick={() => setSelectedPhotoIndex(null)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <span className="text-sm font-semibold">Close</span>
+                  <X className="w-8 h-8" />
+                </motion.button>
+              </div>
+
+              {/* Photo counter */}
+              {photos.length > 1 && (
+                <div className="absolute -top-12 left-0 text-white text-sm font-semibold">
+                  {(selectedPhotoIndex ?? 0) + 1} / {photos.length}
+                </div>
+              )}
 
               <div className="bg-white rounded-3xl overflow-hidden shadow-2xl">
                 <div className="relative">
@@ -424,6 +510,13 @@ export default function PhotoGallery() {
                   </div>
                 </div>
               </div>
+
+              {/* Keyboard hints */}
+              {photos.length > 1 && (
+                <div className="absolute -bottom-12 left-0 right-0 text-center text-white/60 text-sm">
+                  Use arrow keys ← → to navigate, ESC to close
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -470,7 +563,9 @@ export default function PhotoGallery() {
                   {/* Quotation mark */}
                   <div className="mb-8 flex justify-center">
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-purple-500">
-                      <span className="text-6xl text-white font-serif">&ldquo;</span>
+                      <span className="text-6xl text-white font-serif">
+                        &ldquo;
+                      </span>
                     </div>
                   </div>
 

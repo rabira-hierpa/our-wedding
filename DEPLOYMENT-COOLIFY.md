@@ -101,16 +101,19 @@ npx prisma migrate status
 If migrations fail on startup:
 
 1. **Check database connection**:
+
    ```bash
    docker exec <container-name> npx prisma db execute --stdin <<< "SELECT 1;"
    ```
 
 2. **View migration history**:
+
    ```bash
    docker exec <container-name> npx prisma migrate status
    ```
 
 3. **Reset database** (⚠️ WARNING: This will delete all data!):
+
    ```bash
    docker exec <container-name> npx prisma migrate reset --force
    ```

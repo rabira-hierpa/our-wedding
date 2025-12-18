@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Camera, MessageCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface Notification {
   id: string;
@@ -14,6 +14,22 @@ interface Notification {
 
 export default function LiveNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const removeNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const addNotification = useCallback(
+    (notification: Notification) => {
+      setNotifications((prev) => [notification, ...prev].slice(0, 5)); // Keep last 5
+
+      // Auto-remove after 8 seconds
+      setTimeout(() => {
+        removeNotification(notification.id);
+      }, 8000);
+    },
+    [removeNotification]
+  );
 
   useEffect(() => {
     let lastPhotoCount = 0;
@@ -78,20 +94,7 @@ export default function LiveNotifications() {
     checkForUpdates(); // Initial check
 
     return () => clearInterval(interval);
-  }, []);
-
-  const addNotification = (notification: Notification) => {
-    setNotifications((prev) => [notification, ...prev].slice(0, 5)); // Keep last 5
-
-    // Auto-remove after 8 seconds
-    setTimeout(() => {
-      removeNotification(notification.id);
-    }, 8000);
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  }, [addNotification]);
 
   return (
     <div className="fixed top-20 right-4 z-40 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
