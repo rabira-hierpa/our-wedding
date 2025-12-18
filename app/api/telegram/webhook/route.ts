@@ -599,12 +599,13 @@ async function handleGroupJoinConfirmation(
     }
 
     // Create invite link
-    const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID, 1);
+    const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID);
 
     if (!inviteResult.success || !inviteResult.link) {
+      console.error("Invite link creation failed:", inviteResult);
       await answerCallbackQuery(
         callbackQueryId,
-        "Failed to create invite link. Please try again.",
+        "Failed to create invite link. Please contact the admin.",
         true
       );
       return;
@@ -849,19 +850,24 @@ async function handlePhotoUpload(
         messageId
       );
 
-      // Send photo to wedding group chat if user is in the group
-      if (WEDDING_GROUP_CHAT_ID && guest?.inWeddingGroup) {
-        const groupCaption = `📸 Photo from ${user.first_name}${
-          caption ? `\n\n${caption}` : ""
-        }`;
-        // Use telegram file_id for faster forwarding
-        const highestResPhoto = getHighestResolutionPhoto(photos);
-        if (highestResPhoto) {
-          await sendPhotoToChat(
-            WEDDING_GROUP_CHAT_ID,
-            highestResPhoto.file_id,
-            groupCaption
-          );
+      // Always send photo to wedding group chat if configured
+      if (WEDDING_GROUP_CHAT_ID) {
+        try {
+          const groupCaption = `📸 Photo from ${user.first_name}${
+            caption ? `\n\n${caption}` : ""
+          }`;
+          // Use telegram file_id for faster forwarding
+          const highestResPhoto = getHighestResolutionPhoto(photos);
+          if (highestResPhoto) {
+            await sendPhotoToChat(
+              WEDDING_GROUP_CHAT_ID,
+              highestResPhoto.file_id,
+              groupCaption
+            );
+          }
+        } catch (error) {
+          console.error("Error sending photo to group:", error);
+          // Don't fail the upload if group send fails
         }
       }
     } else {

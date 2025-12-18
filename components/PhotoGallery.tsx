@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Calendar, Heart } from "lucide-react";
 import type { PhotoWithGuest } from "@/types/database";
 import AnimatedSection from "./AnimatedSection";
+import QuoteCard from "./QuoteCard";
 import {
   GalleryLoadingSkeleton,
   EmptyGalleryState,
@@ -18,39 +19,74 @@ interface PhotoWithLikes extends PhotoWithGuest {
   likes?: any[];
 }
 
+interface Wish {
+  id: string;
+  message: string;
+  createdAt: string;
+  guest: {
+    firstName: string;
+    lastName: string | null;
+    telegramUsername: string | null;
+  };
+}
+
+// Union type for gallery items
+type GalleryItem =
+  | { type: "photo"; data: PhotoWithLikes }
+  | { type: "wish"; data: Wish };
+
 export default function PhotoGallery() {
   const [photos, setPhotos] = useState<PhotoWithLikes[]>([]);
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithLikes | null>(
     null
   );
+  const [selectedWish, setSelectedWish] = useState<Wish | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchPhotos();
-    // Poll for new photos every 10 seconds
-    const interval = setInterval(fetchPhotos, 10000);
+    fetchGalleryData();
+    // Poll for new photos and wishes every 10 seconds
+    const interval = setInterval(fetchGalleryData, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchPhotos = async () => {
-    try {
-      const response = await fetch("/api/photos", {
-        cache: "no-store",
-      });
+  // Combine and shuffle photos and wishes
+  useEffect(() => {
+    const combined: GalleryItem[] = [
+      ...photos.map((photo) => ({ type: "photo" as const, data: photo })),
+      ...wishes.map((wish) => ({ type: "wish" as const, data: wish })),
+    ];
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch photos");
+    // Shuffle for variety
+    const shuffled = combined.sort(() => Math.random() - 0.5);
+    setGalleryItems(shuffled);
+  }, [photos, wishes]);
+
+  const fetchGalleryData = async () => {
+    try {
+      const [photosRes, wishesRes] = await Promise.all([
+        fetch("/api/photos", { cache: "no-store" }),
+        fetch("/api/wishes", { cache: "no-store" }),
+      ]);
+
+      if (!photosRes.ok || !wishesRes.ok) {
+        throw new Error("Failed to fetch gallery data");
       }
 
-      const data = await response.json();
-      setPhotos(data.photos);
+      const photosData = await photosRes.json();
+      const wishesData = await wishesRes.json();
+
+      setPhotos(photosData.photos);
+      setWishes(wishesData);
       setError(null);
     } catch (err) {
-      console.error("Error fetching photos:", err);
-      setError("Failed to load photos");
+      console.error("Error fetching gallery data:", err);
+      setError("Failed to load gallery");
     } finally {
       setLoading(false);
     }
@@ -130,10 +166,10 @@ export default function PhotoGallery() {
   }
 
   if (error) {
-    return <ErrorState onRetry={fetchPhotos} />;
+    return <ErrorState onRetry={fetchGalleryData} />;
   }
 
-  if (photos.length === 0) {
+  if (galleryItems.length === 0) {
     return <EmptyGalleryState />;
   }
 
@@ -148,16 +184,22 @@ export default function PhotoGallery() {
               </h2>
               <p className="text-xl text-gold-700 font-light">
                 {photos.length} precious{" "}
-                {photos.length === 1 ? "moment" : "moments"} captured
+                {photos.length === 1 ? "moment" : "moments"} &{" "}
+                {wishes.length} heartfelt{" "}
+                {wishes.length === 1 ? "wish" : "wishes"}
               </p>
             </div>
           </AnimatedSection>
 
           {/* Masonry Grid */}
           <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-            {photos.map((photo, index) => (
+            {galleryItems.map((item, index) => (
               <motion.div
-                key={photo.id}
+                key={
+                  item.type === "photo"
+                    ? `photo-${item.data.id}`
+                    : `wish-${item.data.id}`
+                }
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
@@ -167,28 +209,29 @@ export default function PhotoGallery() {
                 }}
                 className="break-inside-avoid"
               >
-                <motion.div
-                  className="relative cursor-pointer group overflow-hidden rounded-2xl shadow-lg"
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                  onClick={() => setSelectedPhoto(photo)}
-                  onHoverStart={() => setHoveredId(photo.id)}
-                  onHoverEnd={() => setHoveredId(null)}
-                >
-                  <Image
-                    src={photo.publicUrl}
-                    alt={photo.caption || "Wedding photo"}
-                    width={600}
-                    height={600}
-                    className="w-full h-auto object-cover"
-                    unoptimized
-                  />
-
-                  {/* Overlay with gradient and info */}
+                {item.type === "photo" ? (
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    initial={false}
+                    className="relative cursor-pointer group overflow-hidden rounded-2xl shadow-lg"
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => setSelectedPhoto(item.data)}
+                    onHoverStart={() => setHoveredId(item.data.id)}
+                    onHoverEnd={() => setHoveredId(null)}
                   >
+                    <Image
+                      src={item.data.publicUrl}
+                      alt={item.data.caption || "Wedding photo"}
+                      width={600}
+                      height={600}
+                      className="w-full h-auto object-cover"
+                      unoptimized
+                    />
+
+                    {/* Overlay with gradient and info */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      initial={false}
+                    >
                     <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                       <motion.div
                         initial={{ y: 20, opacity: 0 }}
@@ -198,52 +241,72 @@ export default function PhotoGallery() {
                             : { y: 20, opacity: 0 }
                         }
                         transition={{ duration: 0.3 }}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="w-4 h-4" />
-                          <p className="font-semibold text-sm">
-                            {photo.guest?.firstName}{" "}
-                            {photo.guest?.lastName || ""}
-                          </p>
-                        </div>
-                        {photo.caption && (
-                          <p className="text-sm text-gray-200 line-clamp-2 mb-2">
-                            {photo.caption}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 text-xs text-gray-300">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(photo.uploadedAt).toLocaleDateString()}
-                        </div>
-                      </motion.div>
-                    </div>
-                  </motion.div>
+                    >
+                      <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                        <motion.div
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={
+                            hoveredId === item.data.id
+                              ? { y: 0, opacity: 1 }
+                              : { y: 20, opacity: 0 }
+                          }
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="w-4 h-4" />
+                            <p className="font-semibold text-sm">
+                              {item.data.guest?.firstName}{" "}
+                              {item.data.guest?.lastName || ""}
+                            </p>
+                          </div>
+                          {item.data.caption && (
+                            <p className="text-sm text-gray-200 line-clamp-2 mb-2">
+                              {item.data.caption}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-gray-300">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(item.data.uploadedAt).toLocaleDateString()}
+                          </div>
+                        </motion.div>
+                      </div>
+                    </motion.div>
 
-                  {/* Like button with count */}
-                  <motion.button
-                    className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-2 opacity-0 group-hover:opacity-100 flex items-center gap-2"
-                    initial={{ scale: 0 }}
-                    animate={
-                      hoveredId === photo.id ? { scale: 1 } : { scale: 0 }
-                    }
-                    transition={{ duration: 0.3, type: "spring" }}
-                    onClick={(e) => handleLike(photo.id, e)}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Heart
-                      className={`w-5 h-5 transition-all ${
-                        likedPhotos.has(photo.id)
-                          ? "text-rose-500 fill-rose-500"
-                          : "text-rose-400"
-                      }`}
-                    />
-                    {photo.likeCount && photo.likeCount > 0 && (
-                      <span className="text-sm font-semibold text-champagne-900">
-                        {photo.likeCount}
-                      </span>
-                    )}
-                  </motion.button>
-                </motion.div>
+                    {/* Like button with count */}
+                    <motion.button
+                      className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-2 opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                      initial={{ scale: 0 }}
+                      animate={
+                        hoveredId === item.data.id ? { scale: 1 } : { scale: 0 }
+                      }
+                      transition={{ duration: 0.3, type: "spring" }}
+                      onClick={(e) => handleLike(item.data.id, e)}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Heart
+                        className={`w-5 h-5 transition-all ${
+                          likedPhotos.has(item.data.id)
+                            ? "text-rose-500 fill-rose-500"
+                            : "text-rose-400"
+                        }`}
+                      />
+                      {item.data.likeCount && item.data.likeCount > 0 && (
+                        <span className="text-sm font-semibold text-champagne-900">
+                          {item.data.likeCount}
+                        </span>
+                      )}
+                    </motion.button>
+                  </motion.div>
+                ) : (
+                  <QuoteCard
+                    message={item.data.message}
+                    author={`${item.data.guest.firstName} ${
+                      item.data.guest.lastName || ""
+                    }`.trim()}
+                    createdAt={item.data.createdAt}
+                    onClick={() => setSelectedWish(item.data)}
+                  />
+                )}
               </motion.div>
             ))}
           </div>
@@ -358,6 +421,87 @@ export default function PhotoGallery() {
                           </span>
                         )}
                     </motion.button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Wish Modal */}
+      <AnimatePresence>
+        {selectedWish && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setSelectedWish(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 50 }}
+              transition={{ duration: 0.4, type: "spring" }}
+              className="relative max-w-2xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <motion.button
+                className="absolute -top-14 right-0 text-white hover:text-pink-300 transition-colors flex items-center gap-2"
+                onClick={() => setSelectedWish(null)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <span className="text-sm font-semibold">Close</span>
+                <X className="w-8 h-8" />
+              </motion.button>
+
+              <div className="bg-gradient-to-br from-pink-50 via-white to-purple-50 rounded-3xl p-12 shadow-2xl">
+                {/* Decorative elements */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-pink-400 rounded-full blur-3xl"></div>
+                  <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-400 rounded-full blur-3xl"></div>
+                </div>
+
+                <div className="relative z-10">
+                  {/* Quotation mark */}
+                  <div className="mb-8 flex justify-center">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-pink-500 to-purple-500">
+                      <span className="text-6xl text-white font-serif">&ldquo;</span>
+                    </div>
+                  </div>
+
+                  {/* Message */}
+                  <p className="text-2xl md:text-3xl font-serif text-gray-800 leading-relaxed text-center mb-8 italic">
+                    {selectedWish.message}
+                  </p>
+
+                  {/* Author and date */}
+                  <div className="flex flex-col items-center space-y-3 pt-6 border-t border-pink-200">
+                    <div className="flex items-center space-x-3">
+                      <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
+                      <p className="text-xl font-semibold text-gray-900">
+                        {selectedWish.guest.firstName}{" "}
+                        {selectedWish.guest.lastName || ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-purple-500" />
+                      <p className="text-sm text-gray-600">
+                        {new Date(selectedWish.createdAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

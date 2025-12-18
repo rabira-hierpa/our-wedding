@@ -12,7 +12,7 @@ datasource db {
 
 model Guest {
   id               String   @id @default(uuid())
-  telegramUserId   BigInt   @unique @map("telegram_user_id")
+  telegramUserId   BigInt   @map("telegram_user_id")
   telegramUsername String?  @map("telegram_username")
   firstName        String   @map("first_name")
   lastName         String?  @map("last_name")

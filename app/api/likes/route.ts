@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 // Toggle like on a photo
 export async function POST(request: NextRequest) {
   try {
-    const { photoId, guestId } = await request.json();
+    const { photoId, guestId: clientGuestId } = await request.json();
 
-    if (!photoId || !guestId) {
+    if (!photoId || !clientGuestId) {
       return NextResponse.json(
         { error: "photoId and guestId are required" },
         { status: 400 }
@@ -25,17 +25,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the guest exists
-    const guest = await prisma.guest.findUnique({
-      where: { id: guestId },
+    // For web users, create a guest if it doesn't exist
+    let guest = await prisma.guest.findUnique({
+      where: { id: clientGuestId },
     });
 
     if (!guest) {
-      return NextResponse.json(
-        { error: "Guest not found. Please ensure you are registered." },
-        { status: 404 }
-      );
+      // Create a web guest
+      guest = await prisma.guest.create({
+        data: {
+          id: clientGuestId,
+          telegramUserId: BigInt(0), // Web users don't have telegram ID
+          firstName: "Web Guest",
+        },
+      });
     }
+
+    const guestId = guest.id;
 
     // Check if like already exists
     const existingLike = await prisma.like.findUnique({
