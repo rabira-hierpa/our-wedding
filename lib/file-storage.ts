@@ -1,10 +1,11 @@
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { existsSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 
 // Storage directory - Next.js serves files from public/ automatically
-const STORAGE_DIR = process.env.STORAGE_DIR || path.join(process.cwd(), 'public', 'uploads');
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const STORAGE_DIR =
+  process.env.STORAGE_DIR || path.join(process.cwd(), "public", "uploads");
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 /**
  * Ensures the storage directory exists
@@ -27,7 +28,7 @@ export async function uploadPhotoToStorage(
 
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8); // Add random string to prevent collisions
-    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${timestamp}-${random}-${sanitizedFileName}`;
     const fullPath = path.join(STORAGE_DIR, storagePath);
 
@@ -42,7 +43,7 @@ export async function uploadPhotoToStorage(
       publicUrl,
     };
   } catch (error) {
-    console.error('Error uploading to file storage:', error);
+    console.error("Error uploading to file storage:", error);
     return null;
   }
 }
@@ -50,9 +51,11 @@ export async function uploadPhotoToStorage(
 /**
  * Deletes a photo from local file system
  */
-export async function deletePhotoFromStorage(filePath: string): Promise<boolean> {
+export async function deletePhotoFromStorage(
+  filePath: string
+): Promise<boolean> {
   try {
-    const { unlink } = await import('fs/promises');
+    const { unlink } = await import("fs/promises");
     const fullPath = path.join(STORAGE_DIR, filePath);
 
     if (existsSync(fullPath)) {
@@ -61,7 +64,7 @@ export async function deletePhotoFromStorage(filePath: string): Promise<boolean>
 
     return true;
   } catch (error) {
-    console.error('Error deleting from file storage:', error);
+    console.error("Error deleting from file storage:", error);
     return false;
   }
 }

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { Heart, Home, ArrowLeft } from 'lucide-react';
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { Heart, Home, ArrowLeft } from "lucide-react";
 
 /**
  * Custom 404 Page
@@ -50,19 +50,19 @@ export default function NotFound() {
             key={i}
             className="absolute"
             initial={{
-              x: Math.random() * 100 + '%',
-              y: '100%',
+              x: Math.random() * 100 + "%",
+              y: "100%",
               opacity: 0,
             }}
             animate={{
-              y: '-10%',
+              y: "-10%",
               opacity: [0, 0.5, 0],
             }}
             transition={{
               duration: 10 + Math.random() * 5,
               repeat: Infinity,
               delay: Math.random() * 5,
-              ease: 'linear',
+              ease: "linear",
             }}
           >
             <Heart className="w-8 h-8 text-blush-300 fill-blush-300" />
@@ -76,7 +76,7 @@ export default function NotFound() {
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           className="mb-8"
         >
           <div className="flex items-center justify-center gap-4 mb-4">
@@ -108,7 +108,7 @@ export default function NotFound() {
           <motion.div
             className="w-24 h-1 bg-gradient-to-r from-transparent via-gold-500 to-transparent mx-auto mb-6"
             initial={{ width: 0 }}
-            animate={{ width: '6rem' }}
+            animate={{ width: "6rem" }}
             transition={{ duration: 0.8, delay: 0.4 }}
           />
         </motion.div>
@@ -119,8 +119,8 @@ export default function NotFound() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="text-lg md:text-xl text-champagne-700 mb-8 leading-relaxed"
         >
-          This page seems to have wandered off to dance at the reception. Let&apos;s
-          get you back to where the magic happens.
+          This page seems to have wandered off to dance at the reception.
+          Let&apos;s get you back to where the magic happens.
         </motion.p>
 
         {/* Call to action buttons */}
@@ -140,8 +140,8 @@ export default function NotFound() {
               {/* Shimmer effect */}
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                initial={{ x: '-100%' }}
-                whileHover={{ x: '100%' }}
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "100%" }}
                 transition={{ duration: 0.6 }}
               />
               <Home className="w-5 h-5 relative z-10" />

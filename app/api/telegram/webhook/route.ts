@@ -11,6 +11,9 @@ import {
   sendPhotoWithButtons,
   answerCallbackQuery,
   deleteMessage,
+  sendMessageWithButtons,
+  createChatInviteLink,
+  sendPhotoToChat,
 } from '@/lib/telegram';
 import { uploadPhotoToStorage, deletePhotoFromStorage } from '@/lib/file-storage';
 import type { TelegramUpdate } from '@/types/telegram';
@@ -73,6 +76,18 @@ export async function POST(request: NextRequest) {
     // Handle /delete command
     if (message.text?.startsWith('/delete')) {
       await handleDeletePhoto(user, message.text, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /wish command for digital signature
+    if (message.text?.startsWith('/wish')) {
+      await handleWishCommand(user, message.text, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /joingroup command
+    if (message.text?.startsWith('/joingroup')) {
+      await handleJoinGroupCommand(user, message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
 
@@ -189,7 +204,7 @@ async function handleRegistration(
 
       await sendMessage(
         chatId,
-        `Hi ${user.first_name}! 🎉\n\nYou're now registered! Send me photos and they'll automatically be added to the wedding gallery.\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos`,
+        `Hi ${user.first_name}! 🎉\n\nYou're now registered! Send me photos and they'll automatically be added to the wedding gallery.\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos\n/wish <message> - Leave a wish for the newlyweds\n/joingroup - Join the wedding photo group`,
         messageId
       );
     } catch (error) {
@@ -209,7 +224,7 @@ async function handleRegistration(
  * Handles /help command
  */
 async function handleHelp(chatId: number, messageId: number) {
-  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/myphotos - View your uploaded photos with delete buttons\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
+  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/myphotos - View your uploaded photos with delete buttons\n/wish <message> - Leave a digital wish for the newlyweds\n/joingroup - Get invitation to join the wedding photo group\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
 
   await sendMessage(chatId, helpText, messageId);
 }
@@ -406,11 +421,197 @@ async function handleCallbackQuery(callbackQuery: any) {
         '✅ Photo has been deleted from the gallery.'
       );
     }
+
+    // Handle join group confirmation
+    if (data?.startsWith('confirm_join_')) {
+      const action = data.replace('confirm_join_', '');
+      
+      if (action === 'yes') {
+        await handleGroupJoinConfirmation(user, chatId, messageId, callbackQuery.id);
+      } else {
+        await answerCallbackQuery(
+          callbackQuery.id,
+          'No problem! You can join anytime with /joingroup'
+        );
+        await deleteMessage(chatId, messageId);
+      }
+    }
   } catch (error) {
     console.error('Error in handleCallbackQuery:', error);
     await answerCallbackQuery(
       callbackQuery.id,
       'Sorry, there was an error processing your request',
+      true
+    );
+  }
+}
+
+/**
+ * Handles /wish command for digital signatures
+ */
+async function handleWishCommand(
+  user: any,
+  messageText: string,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    // Extract wish message
+    const wish = messageText.replace('/wish', '').trim();
+    
+    if (!wish) {
+      await sendMessage(
+        chatId,
+        '💌 Please include your wish!\n\nExample: /wish Wishing you both a lifetime of love and happiness!',
+        messageId
+      );
+      return;
+    }
+
+    // Ensure guest is registered
+    const guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (!guest) {
+      // Auto-register if not already
+      await prisma.guest.create({
+        data: {
+          telegramUserId: BigInt(user.id),
+          telegramUsername: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+      });
+    }
+
+    // Save wish to database
+    await prisma.wish.create({
+      data: {
+        guestId: guest?.id || (await prisma.guest.findUnique({ 
+          where: { telegramUserId: BigInt(user.id) } 
+        }))!.id,
+        message: wish,
+      },
+    });
+
+    await sendMessage(
+      chatId,
+      `💌 Thank you for your beautiful wish!\n\n"${wish}"\n\n✨ Your message will be displayed on the wedding gallery website.`,
+      messageId
+    );
+  } catch (error) {
+    console.error('Error in handleWishCommand:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error saving your wish. Please try again.',
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles /joingroup command
+ */
+async function handleJoinGroupCommand(
+  user: any,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    if (!WEDDING_GROUP_CHAT_ID) {
+      await sendMessage(
+        chatId,
+        'The wedding group is not set up yet. Please contact the organizers.',
+        messageId
+      );
+      return;
+    }
+
+    // Check if user is already in the group
+    const guest = await prisma.guest.findUnique({
+      where: { telegramUserId: BigInt(user.id) },
+    });
+
+    if (guest?.inWeddingGroup) {
+      await sendMessage(
+        chatId,
+        'You\'re already in the wedding group! 🎉',
+        messageId
+      );
+      return;
+    }
+
+    // Send confirmation prompt
+    await sendMessageWithButtons(
+      chatId,
+      `🎉 Would you like to join the wedding photo group?\n\nBy joining:\n✅ You'll see all wedding photos shared by guests\n✅ Your photos will be shared with everyone\n✅ You can chat with other guests`,
+      [
+        [
+          { text: '✅ Yes, join group', callback_data: 'confirm_join_yes' },
+          { text: '❌ No thanks', callback_data: 'confirm_join_no' },
+        ],
+      ],
+      messageId
+    );
+  } catch (error) {
+    console.error('Error in handleJoinGroupCommand:', error);
+    await sendMessage(
+      chatId,
+      'Sorry, there was an error. Please try again later.',
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles group join confirmation
+ */
+async function handleGroupJoinConfirmation(
+  user: any,
+  chatId: number,
+  messageId: number,
+  callbackQueryId: string
+) {
+  try {
+    if (!WEDDING_GROUP_CHAT_ID) {
+      await answerCallbackQuery(callbackQueryId, 'Group not configured', true);
+      return;
+    }
+
+    // Create invite link
+    const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID, 1);
+    
+    if (!inviteResult.success || !inviteResult.link) {
+      await answerCallbackQuery(
+        callbackQueryId,
+        'Failed to create invite link. Please try again.',
+        true
+      );
+      return;
+    }
+
+    // Update guest status
+    await prisma.guest.update({
+      where: { telegramUserId: BigInt(user.id) },
+      data: { inWeddingGroup: true },
+    });
+
+    // Delete the confirmation message
+    await deleteMessage(chatId, messageId);
+
+    // Send invite link
+    await sendMessage(
+      chatId,
+      `🎉 Great! Click the link below to join the wedding group:\n\n${inviteResult.link}\n\n✨ All your future photos will be automatically shared with the group!`
+    );
+
+    await answerCallbackQuery(callbackQueryId, 'Invite sent! ✅');
+  } catch (error) {
+    console.error('Error in handleGroupJoinConfirmation:', error);
+    await answerCallbackQuery(
+      callbackQueryId,
+      'Error creating invite. Please try again.',
       true
     );
   }
@@ -492,10 +693,17 @@ async function processMediaGroupPhotos(
 
       if (result.success) {
         successCount++;
-        // Send photo to wedding group chat if configured
-        if (WEDDING_GROUP_CHAT_ID && result.uploadResult) {
+        // Send photo to wedding group chat if user is in the group
+        if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
           const groupCaption = `📸 Photo from ${user.first_name}${photoMsg.caption ? `\n\n${photoMsg.caption}` : ''}`;
-          await sendPhoto(WEDDING_GROUP_CHAT_ID, result.uploadResult.publicUrl, groupCaption);
+          const highestResPhoto = getHighestResolutionPhoto(photoMsg.photos);
+          if (highestResPhoto) {
+            await sendPhotoToChat(
+              WEDDING_GROUP_CHAT_ID,
+              highestResPhoto.file_id,
+              groupCaption
+            );
+          }
         }
       } else {
         failCount++;
@@ -620,10 +828,18 @@ async function handlePhotoUpload(
         messageId
       );
 
-      // Send photo to wedding group chat if configured
-      if (WEDDING_GROUP_CHAT_ID) {
+      // Send photo to wedding group chat if user is in the group
+      if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
         const groupCaption = `📸 Photo from ${user.first_name}${caption ? `\n\n${caption}` : ''}`;
-        await sendPhoto(WEDDING_GROUP_CHAT_ID, result.uploadResult.publicUrl, groupCaption);
+        // Use telegram file_id for faster forwarding
+        const highestResPhoto = getHighestResolutionPhoto(photos);
+        if (highestResPhoto) {
+          await sendPhotoToChat(
+            WEDDING_GROUP_CHAT_ID,
+            highestResPhoto.file_id,
+            groupCaption
+          );
+        }
       }
     } else {
       await sendMessage(

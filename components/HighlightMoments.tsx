@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
-import { Heart, Camera, Users, Sparkles } from 'lucide-react';
+import { motion } from "framer-motion";
+import { useInView } from "react-intersection-observer";
+import { Heart, Camera, Users, Sparkles } from "lucide-react";
 
 /**
  * Highlight Moments Component
@@ -21,31 +21,31 @@ export default function HighlightMoments() {
   const moments = [
     {
       icon: Heart,
-      title: 'The Ceremony',
-      description: 'Where two hearts became one',
-      color: 'from-blush-400 to-blush-600',
-      bgColor: 'bg-blush-50',
+      title: "The Ceremony",
+      description: "Where two hearts became one",
+      color: "from-blush-400 to-blush-600",
+      bgColor: "bg-blush-50",
     },
     {
       icon: Sparkles,
-      title: 'The Reception',
-      description: 'Celebrating love with family and friends',
-      color: 'from-gold-400 to-gold-600',
-      bgColor: 'bg-gold-50',
+      title: "The Reception",
+      description: "Celebrating love with family and friends",
+      color: "from-gold-400 to-gold-600",
+      bgColor: "bg-gold-50",
     },
     {
       icon: Camera,
-      title: 'Special Portraits',
-      description: 'Capturing the beauty of the day',
-      color: 'from-champagne-400 to-champagne-600',
-      bgColor: 'bg-champagne-50',
+      title: "Special Portraits",
+      description: "Capturing the beauty of the day",
+      color: "from-champagne-400 to-champagne-600",
+      bgColor: "bg-champagne-50",
     },
     {
       icon: Users,
-      title: 'Cherished Moments',
-      description: 'Memories that will last forever',
-      color: 'from-gold-500 to-champagne-600',
-      bgColor: 'bg-ivory-100',
+      title: "Cherished Moments",
+      description: "Memories that will last forever",
+      color: "from-gold-500 to-champagne-600",
+      bgColor: "bg-ivory-100",
     },
   ];
 
@@ -86,7 +86,7 @@ export default function HighlightMoments() {
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-center mb-20"
         >
           <motion.h2
@@ -100,7 +100,7 @@ export default function HighlightMoments() {
           <motion.div
             className="w-24 h-1 bg-gradient-to-r from-transparent via-gold-500 to-transparent mx-auto mb-6"
             initial={{ width: 0 }}
-            animate={inView ? { width: '6rem' } : {}}
+            animate={inView ? { width: "6rem" } : {}}
             transition={{ duration: 0.8, delay: 0.4 }}
           />
           <motion.p
@@ -118,7 +118,7 @@ export default function HighlightMoments() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          animate={inView ? 'visible' : 'hidden'}
+          animate={inView ? "visible" : "hidden"}
           className="grid md:grid-cols-2 gap-8"
         >
           {moments.map((moment, index) => (
@@ -172,7 +172,7 @@ export default function HighlightMoments() {
                   transition={{
                     duration: 3,
                     repeat: Infinity,
-                    ease: 'linear',
+                    ease: "linear",
                   }}
                 >
                   <Sparkles className="w-6 h-6 text-gold-500" />
@@ -195,9 +195,7 @@ export default function HighlightMoments() {
           <p className="font-script text-3xl md:text-5xl text-gold-600">
             inhabiting two bodies
           </p>
-          <p className="text-sm text-champagne-600 mt-4 italic">
-            — Aristotle
-          </p>
+          <p className="text-sm text-champagne-600 mt-4 italic">— Aristotle</p>
         </motion.div>
       </div>
     </section>

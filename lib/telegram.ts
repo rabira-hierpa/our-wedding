@@ -234,3 +234,149 @@ export async function deleteMessage(
     return false;
   }
 }
+
+/**
+ * Sends a message with inline keyboard buttons
+ */
+export async function sendMessageWithButtons(
+  chatId: number,
+  text: string,
+  buttons: { text: string; callback_data: string }[][],
+  replyToMessageId?: number
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        reply_markup: {
+          inline_keyboard: buttons,
+        },
+        reply_to_message_id: replyToMessageId,
+      }),
+    });
+
+    const data = await response.json();
+    return data.ok;
+  } catch (error) {
+    console.error('Error sending message with buttons:', error);
+    return false;
+  }
+}
+
+/**
+ * Adds a user to a chat/group
+ */
+export async function addChatMember(
+  chatId: number,
+  userId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/approveChatJoinRequest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        user_id: userId,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      return { success: false, error: data.description || 'Failed to add user' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding chat member:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Creates a chat invite link
+ */
+export async function createChatInviteLink(
+  chatId: number,
+  memberLimit?: number
+): Promise<{ success: boolean; link?: string; error?: string }> {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/createChatInviteLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        member_limit: memberLimit || 1,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      return { success: false, error: data.description || 'Failed to create invite link' };
+    }
+    
+    return { success: true, link: data.result.invite_link };
+  } catch (error) {
+    console.error('Error creating invite link:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Forwards a message to another chat
+ */
+export async function forwardMessage(
+  chatId: number,
+  fromChatId: number,
+  messageId: number
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/forwardMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        from_chat_id: fromChatId,
+        message_id: messageId,
+      }),
+    });
+
+    const data = await response.json();
+    return data.ok;
+  } catch (error) {
+    console.error('Error forwarding message:', error);
+    return false;
+  }
+}
+
+/**
+ * Sends a photo to a chat using file_id or URL
+ */
+export async function sendPhotoToChat(
+  chatId: number,
+  photoFileIdOrUrl: string,
+  caption?: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: photoFileIdOrUrl,
+        caption,
+      }),
+    });
+
+    const data = await response.json();
+    return data.ok;
+  } catch (error) {
+    console.error('Error sending photo to chat:', error);
+    return false;
+  }
+}
+

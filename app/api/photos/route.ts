@@ -9,6 +9,7 @@ export async function GET() {
     const photos = await prisma.photo.findMany({
       include: {
         guest: true,
+        likes: true,
       },
       orderBy: {
         uploadedAt: 'desc',
@@ -18,6 +19,8 @@ export async function GET() {
     // Convert BigInt to string for JSON serialization
     const serializedPhotos = photos.map((photo) => ({
       ...photo,
+      likeCount: photo.likes.length,
+      likes: photo.likes,
       guest: {
         ...photo.guest,
         telegramUserId: photo.guest.telegramUserId.toString(),

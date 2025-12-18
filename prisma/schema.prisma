@@ -17,10 +17,13 @@ model Guest {
   firstName        String   @map("first_name")
   lastName         String?  @map("last_name")
   registeredAt     DateTime @default(now()) @map("registered_at")
+  inWeddingGroup   Boolean  @default(false) @map("in_wedding_group")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   photos Photo[]
+  wishes Wish[]
+  likes  Like[]
 
   @@index([telegramUserId])
   @@map("guests")
@@ -36,9 +39,38 @@ model Photo {
   uploadedAt     DateTime @default(now()) @map("uploaded_at")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  guest Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  likes Like[]
 
   @@index([guestId])
   @@index([uploadedAt(sort: Desc)])
   @@map("photos")
+}
+
+model Wish {
+  id        String   @id @default(uuid())
+  guestId   String   @map("guest_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@index([guestId])
+  @@index([createdAt(sort: Desc)])
+  @@map("wishes")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  photoId   String   @map("photo_id")
+  guestId   String   @map("guest_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([photoId, guestId])
+  @@index([photoId])
+  @@index([guestId])
+  @@map("likes")
 }

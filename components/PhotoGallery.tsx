@@ -12,14 +12,21 @@ import {
   ErrorState,
 } from "./LoadingStates";
 
+// Extended photo type with like count
+interface PhotoWithLikes extends PhotoWithGuest {
+  likeCount?: number;
+  likes?: any[];
+}
+
 export default function PhotoGallery() {
-  const [photos, setPhotos] = useState<PhotoWithGuest[]>([]);
+  const [photos, setPhotos] = useState<PhotoWithLikes[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithGuest | null>(
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithLikes | null>(
     null
   );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPhotos();
@@ -46,6 +53,73 @@ export default function PhotoGallery() {
       setError("Failed to load photos");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLike = async (photoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Get or create guest ID from localStorage
+    let guestId = localStorage.getItem('guestId');
+    if (!guestId) {
+      guestId = `web-guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('guestId', guestId);
+    }
+
+    try {
+      const response = await fetch("/api/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ photoId, guestId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update liked photos set
+        setLikedPhotos((prev) => {
+          const newSet = new Set(prev);
+          if (data.liked) {
+            newSet.add(photoId);
+          } else {
+            newSet.delete(photoId);
+          }
+          return newSet;
+        });
+
+        // Update photo like count in state
+        setPhotos((prev) =>
+          prev.map((photo) => {
+            if (photo.id === photoId) {
+              return {
+                ...photo,
+                likeCount: data.liked
+                  ? (photo.likeCount || 0) + 1
+                  : Math.max((photo.likeCount || 0) - 1, 0),
+              };
+            }
+            return photo;
+          })
+        );
+
+        // Update selected photo if it's the one being liked
+        if (selectedPhoto?.id === photoId) {
+          setSelectedPhoto((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  likeCount: data.liked
+                    ? (prev.likeCount || 0) + 1
+                    : Math.max((prev.likeCount || 0) - 1, 0),
+                }
+              : null
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
     }
   };
 
@@ -143,17 +217,30 @@ export default function PhotoGallery() {
                     </div>
                   </motion.div>
 
-                  {/* Subtle heart icon on hover */}
-                  <motion.div
-                    className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100"
+                  {/* Like button with count */}
+                  <motion.button
+                    className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-3 py-2 opacity-0 group-hover:opacity-100 flex items-center gap-2"
                     initial={{ scale: 0 }}
                     animate={
                       hoveredId === photo.id ? { scale: 1 } : { scale: 0 }
                     }
                     transition={{ duration: 0.3, type: "spring" }}
+                    onClick={(e) => handleLike(photo.id, e)}
+                    whileTap={{ scale: 0.9 }}
                   >
-                    <Heart className="w-5 h-5 text-rose-500" />
-                  </motion.div>
+                    <Heart
+                      className={`w-5 h-5 transition-all ${
+                        likedPhotos.has(photo.id)
+                          ? "text-rose-500 fill-rose-500"
+                          : "text-rose-400"
+                      }`}
+                    />
+                    {photo.likeCount && photo.likeCount > 0 && (
+                      <span className="text-sm font-semibold text-champagne-900">
+                        {photo.likeCount}
+                      </span>
+                    )}
+                  </motion.button>
                 </motion.div>
               </motion.div>
             ))}
@@ -239,12 +326,35 @@ export default function PhotoGallery() {
                         </div>
                       )}
                     </div>
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
+                    <motion.button
+                      onClick={(e) => handleLike(selectedPhoto.id, e)}
+                      className="flex flex-col items-center gap-2"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
-                      <Heart className="w-12 h-12 text-gold-600 fill-gold-600" />
-                    </motion.div>
+                      <motion.div
+                        animate={
+                          likedPhotos.has(selectedPhoto.id)
+                            ? { scale: [1, 1.3, 1] }
+                            : { scale: 1 }
+                        }
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Heart
+                          className={`w-12 h-12 transition-all ${
+                            likedPhotos.has(selectedPhoto.id)
+                              ? "text-rose-500 fill-rose-500"
+                              : "text-gold-600"
+                          }`}
+                        />
+                      </motion.div>
+                      {selectedPhoto.likeCount && selectedPhoto.likeCount > 0 && (
+                        <span className="text-sm font-semibold text-champagne-900">
+                          {selectedPhoto.likeCount}{" "}
+                          {selectedPhoto.likeCount === 1 ? "like" : "likes"}
+                        </span>
+                      )}
+                    </motion.button>
                   </div>
                 </div>
               </div>
