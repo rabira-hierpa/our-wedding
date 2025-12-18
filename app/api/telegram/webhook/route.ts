@@ -1,43 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import {
-  verifyTelegramRequest,
-  getHighestResolutionPhoto,
-  getFileInfo,
-  downloadTelegramFile,
-  sendMessage,
-  sendPhoto,
-  sendChatAction,
-  sendPhotoWithButtons,
+  deletePhotoFromStorage,
+  uploadPhotoToStorage,
+} from "@/lib/file-storage";
+import { prisma } from "@/lib/prisma";
+import {
   answerCallbackQuery,
-  deleteMessage,
-  sendMessageWithButtons,
   createChatInviteLink,
+  deleteMessage,
+  downloadTelegramFile,
+  getFileInfo,
+  getHighestResolutionPhoto,
+  sendChatAction,
+  sendMessage,
+  sendMessageWithButtons,
+  sendPhoto,
   sendPhotoToChat,
-} from '@/lib/telegram';
-import { uploadPhotoToStorage, deletePhotoFromStorage } from '@/lib/file-storage';
-import type { TelegramUpdate } from '@/types/telegram';
+  sendPhotoWithButtons,
+  verifyTelegramRequest,
+} from "@/lib/telegram";
+import type { TelegramUpdate } from "@/types/telegram";
+import { NextRequest, NextResponse } from "next/server";
 
 const WEDDING_GROUP_CHAT_ID = process.env.WEDDING_GROUP_CHAT_ID
   ? parseInt(process.env.WEDDING_GROUP_CHAT_ID)
   : null;
 
 // Track media groups to handle multiple photos sent together
-const mediaGroups = new Map<string, { photos: any[], timeout: NodeJS.Timeout }>();
+const mediaGroups = new Map<
+  string,
+  { photos: any[]; timeout: NodeJS.Timeout }
+>();
 
 export async function POST(request: NextRequest) {
   try {
     // Verify the request comes from Telegram
-    const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
-    console.log('Received secret header:', secret);
-    console.log('Expected secret:', process.env.TELEGRAM_WEBHOOK_SECRET);
+    const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
+    console.log("Received secret header:", secret);
+    console.log("Expected secret:", process.env.TELEGRAM_WEBHOOK_SECRET);
     if (!secret || !verifyTelegramRequest(secret)) {
-      console.error('Invalid or missing secret token');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error("Invalid or missing secret token");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const update: TelegramUpdate = await request.json();
-    console.log('Received update:', JSON.stringify(update, null, 2));
+    console.log("Received update:", JSON.stringify(update, null, 2));
 
     // Handle callback queries (button presses)
     if (update.callback_query) {
@@ -56,37 +62,47 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle /start command for registration
-    if (message.text?.startsWith('/start')) {
+    if (message.text?.startsWith("/start")) {
       await handleRegistration(user, message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
 
     // Handle /help command
-    if (message.text?.startsWith('/help')) {
+    if (message.text?.startsWith("/help")) {
       await handleHelp(message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
 
     // Handle /myphotos command
-    if (message.text?.startsWith('/myphotos')) {
+    if (message.text?.startsWith("/myphotos")) {
       await handleMyPhotos(user, message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
 
     // Handle /delete command
-    if (message.text?.startsWith('/delete')) {
-      await handleDeletePhoto(user, message.text, message.chat.id, message.message_id);
+    if (message.text?.startsWith("/delete")) {
+      await handleDeletePhoto(
+        user,
+        message.text,
+        message.chat.id,
+        message.message_id
+      );
       return NextResponse.json({ ok: true });
     }
 
     // Handle /wish command for digital signature
-    if (message.text?.startsWith('/wish')) {
-      await handleWishCommand(user, message.text, message.chat.id, message.message_id);
+    if (message.text?.startsWith("/wish")) {
+      await handleWishCommand(
+        user,
+        message.text,
+        message.chat.id,
+        message.message_id
+      );
       return NextResponse.json({ ok: true });
     }
 
     // Handle /joingroup command
-    if (message.text?.startsWith('/joingroup')) {
+    if (message.text?.startsWith("/joingroup")) {
       await handleJoinGroupCommand(user, message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
@@ -95,7 +111,7 @@ export async function POST(request: NextRequest) {
     if (message.video) {
       await sendMessage(
         message.chat.id,
-        '❌ Sorry, I only accept photos (images), not videos.',
+        "❌ Sorry, I only accept photos (images), not videos.",
         message.message_id
       );
       return NextResponse.json({ ok: true });
@@ -103,9 +119,9 @@ export async function POST(request: NextRequest) {
 
     // Handle photo sent as document (file)
     if (message.document) {
-      const mimeType = message.document.mime_type || '';
+      const mimeType = message.document.mime_type || "";
       // Check if document is an image
-      if (mimeType.startsWith('image/')) {
+      if (mimeType.startsWith("image/")) {
         await handleDocumentPhoto(
           user,
           message.document,
@@ -117,7 +133,7 @@ export async function POST(request: NextRequest) {
       } else {
         await sendMessage(
           message.chat.id,
-          '❌ Sorry, I only accept image files. Please send photos.',
+          "❌ Sorry, I only accept image files. Please send photos.",
           message.message_id
         );
         return NextResponse.json({ ok: true });
@@ -153,16 +169,16 @@ export async function POST(request: NextRequest) {
     if (message.text) {
       await sendMessage(
         message.chat.id,
-        '📸 Send me photos to add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos',
+        "📸 Send me photos to add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos",
         message.message_id
       );
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error("Error processing webhook:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -208,15 +224,15 @@ async function handleRegistration(
         messageId
       );
     } catch (error) {
-      console.error('Error registering guest:', error);
+      console.error("Error registering guest:", error);
       await sendMessage(
         chatId,
-        'Sorry, there was an error registering you. Please try again later.',
+        "Sorry, there was an error registering you. Please try again later.",
         messageId
       );
     }
   } catch (error) {
-    console.error('Error in handleRegistration:', error);
+    console.error("Error in handleRegistration:", error);
   }
 }
 
@@ -238,7 +254,7 @@ async function handleMyPhotos(user: any, chatId: number, messageId: number) {
       where: { telegramUserId: BigInt(user.id) },
       include: {
         photos: {
-          orderBy: { uploadedAt: 'desc' },
+          orderBy: { uploadedAt: "desc" },
         },
       },
     });
@@ -246,7 +262,7 @@ async function handleMyPhotos(user: any, chatId: number, messageId: number) {
     if (!guest || guest.photos.length === 0) {
       await sendMessage(
         chatId,
-        'You haven\'t uploaded any photos yet. Send me some photos to get started! 📸',
+        "You haven't uploaded any photos yet. Send me some photos to get started! 📸",
         messageId
       );
       return;
@@ -267,18 +283,15 @@ async function handleMyPhotos(user: any, chatId: number, messageId: number) {
         : `Photo ${photoNumber}`;
 
       // Send photo with delete button using Telegram file_id
-      await sendPhotoWithButtons(
-        chatId,
-        photo.telegramFileId,
-        caption,
-        [[{ text: '🗑️ Delete', callback_data: `delete_${photo.id}` }]]
-      );
+      await sendPhotoWithButtons(chatId, photo.telegramFileId, caption, [
+        [{ text: "🗑️ Delete", callback_data: `delete_${photo.id}` }],
+      ]);
     }
   } catch (error) {
-    console.error('Error in handleMyPhotos:', error);
+    console.error("Error in handleMyPhotos:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error retrieving your photos.',
+      "Sorry, there was an error retrieving your photos.",
       messageId
     );
   }
@@ -294,11 +307,11 @@ async function handleDeletePhoto(
   messageId: number
 ) {
   try {
-    const parts = messageText.split(' ');
+    const parts = messageText.split(" ");
     if (parts.length < 2 || isNaN(parseInt(parts[1]))) {
       await sendMessage(
         chatId,
-        'Please specify a photo number to delete. Use: /delete <number>\n\nTo see your photos, use: /myphotos',
+        "Please specify a photo number to delete. Use: /delete <number>\n\nTo see your photos, use: /myphotos",
         messageId
       );
       return;
@@ -310,7 +323,7 @@ async function handleDeletePhoto(
       where: { telegramUserId: BigInt(user.id) },
       include: {
         photos: {
-          orderBy: { uploadedAt: 'desc' },
+          orderBy: { uploadedAt: "desc" },
         },
       },
     });
@@ -318,7 +331,7 @@ async function handleDeletePhoto(
     if (!guest || guest.photos.length === 0) {
       await sendMessage(
         chatId,
-        'You don\'t have any photos to delete.',
+        "You don't have any photos to delete.",
         messageId
       );
       return;
@@ -349,10 +362,10 @@ async function handleDeletePhoto(
       messageId
     );
   } catch (error) {
-    console.error('Error in handleDeletePhoto:', error);
+    console.error("Error in handleDeletePhoto:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error deleting the photo.',
+      "Sorry, there was an error deleting the photo.",
       messageId
     );
   }
@@ -369,13 +382,13 @@ async function handleCallbackQuery(callbackQuery: any) {
     const messageId = callbackQuery.message?.message_id;
 
     if (!chatId || !messageId) {
-      await answerCallbackQuery(callbackQuery.id, 'Error processing request');
+      await answerCallbackQuery(callbackQuery.id, "Error processing request");
       return;
     }
 
     // Handle delete button press
-    if (data?.startsWith('delete_')) {
-      const photoId = data.replace('delete_', '');
+    if (data?.startsWith("delete_")) {
+      const photoId = data.replace("delete_", "");
 
       // Find the photo and verify ownership
       const photo = await prisma.photo.findUnique({
@@ -384,7 +397,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       });
 
       if (!photo) {
-        await answerCallbackQuery(callbackQuery.id, 'Photo not found', true);
+        await answerCallbackQuery(callbackQuery.id, "Photo not found", true);
         return;
       }
 
@@ -392,7 +405,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       if (photo.guest.telegramUserId !== BigInt(user.id)) {
         await answerCallbackQuery(
           callbackQuery.id,
-          'You can only delete your own photos',
+          "You can only delete your own photos",
           true
         );
         return;
@@ -412,35 +425,37 @@ async function handleCallbackQuery(callbackQuery: any) {
       // Answer the callback query
       await answerCallbackQuery(
         callbackQuery.id,
-        'Photo deleted successfully ✅'
+        "Photo deleted successfully ✅"
       );
 
       // Send confirmation message
-      await sendMessage(
-        chatId,
-        '✅ Photo has been deleted from the gallery.'
-      );
+      await sendMessage(chatId, "✅ Photo has been deleted from the gallery.");
     }
 
     // Handle join group confirmation
-    if (data?.startsWith('confirm_join_')) {
-      const action = data.replace('confirm_join_', '');
-      
-      if (action === 'yes') {
-        await handleGroupJoinConfirmation(user, chatId, messageId, callbackQuery.id);
+    if (data?.startsWith("confirm_join_")) {
+      const action = data.replace("confirm_join_", "");
+
+      if (action === "yes") {
+        await handleGroupJoinConfirmation(
+          user,
+          chatId,
+          messageId,
+          callbackQuery.id
+        );
       } else {
         await answerCallbackQuery(
           callbackQuery.id,
-          'No problem! You can join anytime with /joingroup'
+          "No problem! You can join anytime with /joingroup"
         );
         await deleteMessage(chatId, messageId);
       }
     }
   } catch (error) {
-    console.error('Error in handleCallbackQuery:', error);
+    console.error("Error in handleCallbackQuery:", error);
     await answerCallbackQuery(
       callbackQuery.id,
-      'Sorry, there was an error processing your request',
+      "Sorry, there was an error processing your request",
       true
     );
   }
@@ -457,12 +472,12 @@ async function handleWishCommand(
 ) {
   try {
     // Extract wish message
-    const wish = messageText.replace('/wish', '').trim();
-    
+    const wish = messageText.replace("/wish", "").trim();
+
     if (!wish) {
       await sendMessage(
         chatId,
-        '💌 Please include your wish!\n\nExample: /wish Wishing you both a lifetime of love and happiness!',
+        "💌 Please include your wish!\n\nExample: /wish Wishing you both a lifetime of love and happiness!",
         messageId
       );
       return;
@@ -488,9 +503,11 @@ async function handleWishCommand(
     // Save wish to database
     await prisma.wish.create({
       data: {
-        guestId: guest?.id || (await prisma.guest.findUnique({ 
-          where: { telegramUserId: BigInt(user.id) } 
-        }))!.id,
+        guestId:
+          guest?.id ||
+          (await prisma.guest.findUnique({
+            where: { telegramUserId: BigInt(user.id) },
+          }))!.id,
         message: wish,
       },
     });
@@ -501,10 +518,10 @@ async function handleWishCommand(
       messageId
     );
   } catch (error) {
-    console.error('Error in handleWishCommand:', error);
+    console.error("Error in handleWishCommand:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error saving your wish. Please try again.',
+      "Sorry, there was an error saving your wish. Please try again.",
       messageId
     );
   }
@@ -522,7 +539,7 @@ async function handleJoinGroupCommand(
     if (!WEDDING_GROUP_CHAT_ID) {
       await sendMessage(
         chatId,
-        'The wedding group is not set up yet. Please contact the organizers.',
+        "The wedding group is not set up yet. Please contact the organizers.",
         messageId
       );
       return;
@@ -536,7 +553,7 @@ async function handleJoinGroupCommand(
     if (guest?.inWeddingGroup) {
       await sendMessage(
         chatId,
-        'You\'re already in the wedding group! 🎉',
+        "You're already in the wedding group! 🎉",
         messageId
       );
       return;
@@ -548,17 +565,17 @@ async function handleJoinGroupCommand(
       `🎉 Would you like to join the wedding photo group?\n\nBy joining:\n✅ You'll see all wedding photos shared by guests\n✅ Your photos will be shared with everyone\n✅ You can chat with other guests`,
       [
         [
-          { text: '✅ Yes, join group', callback_data: 'confirm_join_yes' },
-          { text: '❌ No thanks', callback_data: 'confirm_join_no' },
+          { text: "✅ Yes, join group", callback_data: "confirm_join_yes" },
+          { text: "❌ No thanks", callback_data: "confirm_join_no" },
         ],
       ],
       messageId
     );
   } catch (error) {
-    console.error('Error in handleJoinGroupCommand:', error);
+    console.error("Error in handleJoinGroupCommand:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error. Please try again later.',
+      "Sorry, there was an error. Please try again later.",
       messageId
     );
   }
@@ -575,17 +592,17 @@ async function handleGroupJoinConfirmation(
 ) {
   try {
     if (!WEDDING_GROUP_CHAT_ID) {
-      await answerCallbackQuery(callbackQueryId, 'Group not configured', true);
+      await answerCallbackQuery(callbackQueryId, "Group not configured", true);
       return;
     }
 
     // Create invite link
     const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID, 1);
-    
+
     if (!inviteResult.success || !inviteResult.link) {
       await answerCallbackQuery(
         callbackQueryId,
-        'Failed to create invite link. Please try again.',
+        "Failed to create invite link. Please try again.",
         true
       );
       return;
@@ -606,12 +623,12 @@ async function handleGroupJoinConfirmation(
       `🎉 Great! Click the link below to join the wedding group:\n\n${inviteResult.link}\n\n✨ All your future photos will be automatically shared with the group!`
     );
 
-    await answerCallbackQuery(callbackQueryId, 'Invite sent! ✅');
+    await answerCallbackQuery(callbackQueryId, "Invite sent! ✅");
   } catch (error) {
-    console.error('Error in handleGroupJoinConfirmation:', error);
+    console.error("Error in handleGroupJoinConfirmation:", error);
     await answerCallbackQuery(
       callbackQueryId,
-      'Error creating invite. Please try again.',
+      "Error creating invite. Please try again.",
       true
     );
   }
@@ -631,7 +648,7 @@ async function handleMediaGroup(
   // If this is the first photo in the group, create a new entry
   if (!mediaGroups.has(mediaGroupId)) {
     // Send "uploading photo" action
-    await sendChatAction(chatId, 'upload_photo');
+    await sendChatAction(chatId, "upload_photo");
 
     // Create a timeout to process all photos after 1 second
     const timeout = setTimeout(async () => {
@@ -663,7 +680,7 @@ async function processMediaGroupPhotos(
 ) {
   try {
     // Send "uploading photo" action
-    await sendChatAction(chatId, 'upload_photo');
+    await sendChatAction(chatId, "upload_photo");
 
     let guest = await prisma.guest.findUnique({
       where: { telegramUserId: BigInt(user.id) },
@@ -695,7 +712,9 @@ async function processMediaGroupPhotos(
         successCount++;
         // Send photo to wedding group chat if user is in the group
         if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
-          const groupCaption = `📸 Photo from ${user.first_name}${photoMsg.caption ? `\n\n${photoMsg.caption}` : ''}`;
+          const groupCaption = `📸 Photo from ${user.first_name}${
+            photoMsg.caption ? `\n\n${photoMsg.caption}` : ""
+          }`;
           const highestResPhoto = getHighestResolutionPhoto(photoMsg.photos);
           if (highestResPhoto) {
             await sendPhotoToChat(
@@ -711,7 +730,7 @@ async function processMediaGroupPhotos(
     }
 
     // Send summary message
-    let summaryMessage = '';
+    let summaryMessage = "";
     if (successCount > 0) {
       summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n`;
     }
@@ -721,10 +740,10 @@ async function processMediaGroupPhotos(
 
     await sendMessage(chatId, summaryMessage);
   } catch (error) {
-    console.error('Error processing media group:', error);
+    console.error("Error processing media group:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error uploading your photos.'
+      "Sorry, there was an error uploading your photos."
     );
   }
 }
@@ -754,7 +773,7 @@ async function uploadSinglePhoto(
       return { success: false };
     }
 
-    const fileExtension = fileInfo.file_path.split('.').pop() || 'jpg';
+    const fileExtension = fileInfo.file_path.split(".").pop() || "jpg";
     const fileName = `photo-${user.id}-${Date.now()}.${fileExtension}`;
     const uploadResult = await uploadPhotoToStorage(fileBuffer, fileName);
 
@@ -774,7 +793,7 @@ async function uploadSinglePhoto(
 
     return { success: true, uploadResult };
   } catch (error) {
-    console.error('Error in uploadSinglePhoto:', error);
+    console.error("Error in uploadSinglePhoto:", error);
     return { success: false };
   }
 }
@@ -791,7 +810,7 @@ async function handlePhotoUpload(
 ) {
   try {
     // Send "uploading photo" action
-    await sendChatAction(chatId, 'upload_photo');
+    await sendChatAction(chatId, "upload_photo");
 
     // Get or create guest
     let guest = await prisma.guest.findUnique({
@@ -809,10 +828,10 @@ async function handlePhotoUpload(
           },
         });
       } catch (error) {
-        console.error('Error auto-registering guest:', error);
+        console.error("Error auto-registering guest:", error);
         await sendMessage(
           chatId,
-          'Please send /start first to register!',
+          "Please send /start first to register!",
           messageId
         );
         return;
@@ -824,13 +843,15 @@ async function handlePhotoUpload(
     if (result.success && result.uploadResult) {
       await sendMessage(
         chatId,
-        '✅ Your photo has been added to the wedding gallery!',
+        "✅ Your photo has been added to the wedding gallery!",
         messageId
       );
 
       // Send photo to wedding group chat if user is in the group
       if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
-        const groupCaption = `📸 Photo from ${user.first_name}${caption ? `\n\n${caption}` : ''}`;
+        const groupCaption = `📸 Photo from ${user.first_name}${
+          caption ? `\n\n${caption}` : ""
+        }`;
         // Use telegram file_id for faster forwarding
         const highestResPhoto = getHighestResolutionPhoto(photos);
         if (highestResPhoto) {
@@ -844,15 +865,15 @@ async function handlePhotoUpload(
     } else {
       await sendMessage(
         chatId,
-        'Sorry, there was an error uploading your photo.',
+        "Sorry, there was an error uploading your photo.",
         messageId
       );
     }
   } catch (error) {
-    console.error('Error in handlePhotoUpload:', error);
+    console.error("Error in handlePhotoUpload:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error uploading your photo.',
+      "Sorry, there was an error uploading your photo.",
       messageId
     );
   }
@@ -870,7 +891,7 @@ async function handleDocumentPhoto(
 ) {
   try {
     // Send "uploading photo" action
-    await sendChatAction(chatId, 'upload_photo');
+    await sendChatAction(chatId, "upload_photo");
 
     let guest = await prisma.guest.findUnique({
       where: { telegramUserId: BigInt(user.id) },
@@ -891,7 +912,7 @@ async function handleDocumentPhoto(
     if (!fileInfo || !fileInfo.file_path) {
       await sendMessage(
         chatId,
-        'Could not download the photo from Telegram.',
+        "Could not download the photo from Telegram.",
         messageId
       );
       return;
@@ -899,16 +920,17 @@ async function handleDocumentPhoto(
 
     const fileBuffer = await downloadTelegramFile(fileInfo.file_path);
     if (!fileBuffer) {
-      await sendMessage(chatId, 'Could not download the photo.', messageId);
+      await sendMessage(chatId, "Could not download the photo.", messageId);
       return;
     }
 
-    const fileExtension = (document.file_name || fileInfo.file_path).split('.').pop() || 'jpg';
+    const fileExtension =
+      (document.file_name || fileInfo.file_path).split(".").pop() || "jpg";
     const fileName = `photo-${user.id}-${Date.now()}.${fileExtension}`;
     const uploadResult = await uploadPhotoToStorage(fileBuffer, fileName);
 
     if (!uploadResult) {
-      await sendMessage(chatId, 'Could not upload the photo.', messageId);
+      await sendMessage(chatId, "Could not upload the photo.", messageId);
       return;
     }
 
@@ -924,20 +946,26 @@ async function handleDocumentPhoto(
 
     await sendMessage(
       chatId,
-      '✅ Your photo has been added to the wedding gallery!',
+      "✅ Your photo has been added to the wedding gallery!",
       messageId
     );
 
     // Send photo to wedding group chat if configured
     if (WEDDING_GROUP_CHAT_ID) {
-      const groupCaption = `📸 Photo from ${user.first_name}${caption ? `\n\n${caption}` : ''}`;
-      await sendPhoto(WEDDING_GROUP_CHAT_ID, uploadResult.publicUrl, groupCaption);
+      const groupCaption = `📸 Photo from ${user.first_name}${
+        caption ? `\n\n${caption}` : ""
+      }`;
+      await sendPhoto(
+        WEDDING_GROUP_CHAT_ID,
+        uploadResult.publicUrl,
+        groupCaption
+      );
     }
   } catch (error) {
-    console.error('Error in handleDocumentPhoto:', error);
+    console.error("Error in handleDocumentPhoto:", error);
     await sendMessage(
       chatId,
-      'Sorry, there was an error uploading your photo.',
+      "Sorry, there was an error uploading your photo.",
       messageId
     );
   }

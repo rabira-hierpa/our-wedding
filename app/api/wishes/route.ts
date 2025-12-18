@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
 // GET all wishes
 export async function GET() {
@@ -15,15 +15,15 @@ export async function GET() {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
     return NextResponse.json(wishes);
   } catch (error) {
-    console.error('Error fetching wishes:', error);
+    console.error("Error fetching wishes:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch wishes' },
+      { error: "Failed to fetch wishes" },
       { status: 500 }
     );
   }

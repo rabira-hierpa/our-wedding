@@ -58,12 +58,14 @@ export default function PhotoGallery() {
 
   const handleLike = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     // Get or create guest ID from localStorage
-    let guestId = localStorage.getItem('guestId');
+    let guestId = localStorage.getItem("guestId");
     if (!guestId) {
-      guestId = `web-guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('guestId', guestId);
+      guestId = `web-guest-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      localStorage.setItem("guestId", guestId);
     }
 
     try {
@@ -77,7 +79,7 @@ export default function PhotoGallery() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Update liked photos set
         setLikedPhotos((prev) => {
           const newSet = new Set(prev);
@@ -348,12 +350,13 @@ export default function PhotoGallery() {
                           }`}
                         />
                       </motion.div>
-                      {selectedPhoto.likeCount && selectedPhoto.likeCount > 0 && (
-                        <span className="text-sm font-semibold text-champagne-900">
-                          {selectedPhoto.likeCount}{" "}
-                          {selectedPhoto.likeCount === 1 ? "like" : "likes"}
-                        </span>
-                      )}
+                      {selectedPhoto.likeCount &&
+                        selectedPhoto.likeCount > 0 && (
+                          <span className="text-sm font-semibold text-champagne-900">
+                            {selectedPhoto.likeCount}{" "}
+                            {selectedPhoto.likeCount === 1 ? "like" : "likes"}
+                          </span>
+                        )}
                     </motion.button>
                   </div>
                 </div>

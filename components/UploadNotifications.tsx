@@ -41,7 +41,9 @@ export default function UploadNotifications() {
             const userId = photo.guestId;
             if (!acc[userId]) {
               acc[userId] = {
-                userName: `${photo.guest.firstName} ${photo.guest.lastName || ""}`.trim(),
+                userName: `${photo.guest.firstName} ${
+                  photo.guest.lastName || ""
+                }`.trim(),
                 photos: [],
               };
             }
@@ -51,33 +53,42 @@ export default function UploadNotifications() {
 
           // Create notifications for new uploads since last check
           const newNotifications: UploadNotification[] = [];
-          Object.entries(uploadsByUser).forEach(([userId, data]: [string, any]) => {
-            const newPhotos = data.photos.filter(
-              (photo: any) => new Date(photo.uploadedAt).getTime() > lastCheckTime
-            );
-            
-            if (newPhotos.length > 0) {
-              newNotifications.push({
-                id: `${userId}-${Date.now()}`,
-                userName: data.userName,
-                photoCount: newPhotos.length,
-                timestamp: Date.now(),
-              });
+          Object.entries(uploadsByUser).forEach(
+            ([userId, data]: [string, any]) => {
+              const newPhotos = data.photos.filter(
+                (photo: any) =>
+                  new Date(photo.uploadedAt).getTime() > lastCheckTime
+              );
+
+              if (newPhotos.length > 0) {
+                newNotifications.push({
+                  id: `${userId}-${Date.now()}`,
+                  userName: data.userName,
+                  photoCount: newPhotos.length,
+                  timestamp: Date.now(),
+                });
+              }
             }
-          });
+          );
 
           if (newNotifications.length > 0) {
-            setNotifications((prev) => [...newNotifications, ...prev].slice(0, 5));
+            setNotifications((prev) =>
+              [...newNotifications, ...prev].slice(0, 5)
+            );
             setLastCheckTime(Date.now());
 
             // Determine how long to show notifications
-            const uniqueUsers = new Set(recentPhotos.map((p: any) => p.guestId));
+            const uniqueUsers = new Set(
+              recentPhotos.map((p: any) => p.guestId)
+            );
             const displayDuration = uniqueUsers.size === 1 ? 30000 : 3000; // 30s for single user, 3s for multiple
 
             // Remove notifications after display duration
             newNotifications.forEach((notif) => {
               setTimeout(() => {
-                setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+                setNotifications((prev) =>
+                  prev.filter((n) => n.id !== notif.id)
+                );
               }, displayDuration);
             });
           }

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
         likes: true,
       },
       orderBy: {
-        uploadedAt: 'desc',
+        uploadedAt: "desc",
       },
     });
 
@@ -29,9 +29,9 @@ export async function GET() {
 
     return NextResponse.json({ photos: serializedPhotos });
   } catch (error) {
-    console.error('Error in GET /api/photos:', error);
+    console.error("Error in GET /api/photos:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

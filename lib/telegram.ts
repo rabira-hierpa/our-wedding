@@ -1,4 +1,4 @@
-import type { TelegramPhotoSize, TelegramFile } from '@/types/telegram';
+import type { TelegramFile, TelegramPhotoSize } from "@/types/telegram";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const TELEGRAM_API_BASE = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
@@ -8,10 +8,10 @@ const TELEGRAM_API_BASE = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
  */
 export function verifyTelegramRequest(token: string): boolean {
   const expectedToken = process.env.TELEGRAM_WEBHOOK_SECRET;
-  console.log('DEBUG: Received token:', token);
-  console.log('DEBUG: Expected token:', expectedToken);
+  console.log("DEBUG: Received token:", token);
+  console.log("DEBUG: Expected token:", expectedToken);
   if (!expectedToken) {
-    console.error('TELEGRAM_WEBHOOK_SECRET is not set');
+    console.error("TELEGRAM_WEBHOOK_SECRET is not set");
     return false;
   }
   return token === expectedToken;
@@ -35,19 +35,23 @@ export function getHighestResolutionPhoto(
 /**
  * Gets file information from Telegram
  */
-export async function getFileInfo(fileId: string): Promise<TelegramFile | null> {
+export async function getFileInfo(
+  fileId: string
+): Promise<TelegramFile | null> {
   try {
-    const response = await fetch(`${TELEGRAM_API_BASE}/getFile?file_id=${fileId}`);
+    const response = await fetch(
+      `${TELEGRAM_API_BASE}/getFile?file_id=${fileId}`
+    );
     const data = await response.json();
 
     if (!data.ok) {
-      console.error('Failed to get file info:', data);
+      console.error("Failed to get file info:", data);
       return null;
     }
 
     return data.result;
   } catch (error) {
-    console.error('Error getting file info:', error);
+    console.error("Error getting file info:", error);
     return null;
   }
 }
@@ -55,20 +59,22 @@ export async function getFileInfo(fileId: string): Promise<TelegramFile | null> 
 /**
  * Downloads a file from Telegram
  */
-export async function downloadTelegramFile(filePath: string): Promise<Buffer | null> {
+export async function downloadTelegramFile(
+  filePath: string
+): Promise<Buffer | null> {
   try {
     const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`;
     const response = await fetch(fileUrl);
 
     if (!response.ok) {
-      console.error('Failed to download file:', response.statusText);
+      console.error("Failed to download file:", response.statusText);
       return null;
     }
 
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
   } catch (error) {
-    console.error('Error downloading file:', error);
+    console.error("Error downloading file:", error);
     return null;
   }
 }
@@ -83,8 +89,8 @@ export async function sendMessage(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         text,
@@ -95,7 +101,7 @@ export async function sendMessage(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error("Error sending message:", error);
     return false;
   }
 }
@@ -110,8 +116,8 @@ export async function sendPhoto(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         photo: photoUrl,
@@ -122,7 +128,7 @@ export async function sendPhoto(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending photo:', error);
+    console.error("Error sending photo:", error);
     return false;
   }
 }
@@ -132,12 +138,12 @@ export async function sendPhoto(
  */
 export async function sendChatAction(
   chatId: number,
-  action: 'typing' | 'upload_photo' | 'upload_video' | 'upload_document'
+  action: "typing" | "upload_photo" | "upload_video" | "upload_document"
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendChatAction`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         action,
@@ -147,7 +153,7 @@ export async function sendChatAction(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending chat action:', error);
+    console.error("Error sending chat action:", error);
     return false;
   }
 }
@@ -163,8 +169,8 @@ export async function sendPhotoWithButtons(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         photo: photoUrl,
@@ -178,7 +184,7 @@ export async function sendPhotoWithButtons(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending photo with buttons:', error);
+    console.error("Error sending photo with buttons:", error);
     return false;
   }
 }
@@ -193,8 +199,8 @@ export async function answerCallbackQuery(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/answerCallbackQuery`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         callback_query_id: callbackQueryId,
         text,
@@ -205,7 +211,7 @@ export async function answerCallbackQuery(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error answering callback query:', error);
+    console.error("Error answering callback query:", error);
     return false;
   }
 }
@@ -219,8 +225,8 @@ export async function deleteMessage(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/deleteMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         message_id: messageId,
@@ -230,7 +236,7 @@ export async function deleteMessage(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error deleting message:', error);
+    console.error("Error deleting message:", error);
     return false;
   }
 }
@@ -246,8 +252,8 @@ export async function sendMessageWithButtons(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         text,
@@ -261,7 +267,7 @@ export async function sendMessageWithButtons(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending message with buttons:', error);
+    console.error("Error sending message with buttons:", error);
     return false;
   }
 }
@@ -274,24 +280,30 @@ export async function addChatMember(
   userId: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${TELEGRAM_API_BASE}/approveChatJoinRequest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        user_id: userId,
-      }),
-    });
+    const response = await fetch(
+      `${TELEGRAM_API_BASE}/approveChatJoinRequest`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          user_id: userId,
+        }),
+      }
+    );
 
     const data = await response.json();
-    
+
     if (!data.ok) {
-      return { success: false, error: data.description || 'Failed to add user' };
+      return {
+        success: false,
+        error: data.description || "Failed to add user",
+      };
     }
-    
+
     return { success: true };
   } catch (error) {
-    console.error('Error adding chat member:', error);
+    console.error("Error adding chat member:", error);
     return { success: false, error: String(error) };
   }
 }
@@ -305,8 +317,8 @@ export async function createChatInviteLink(
 ): Promise<{ success: boolean; link?: string; error?: string }> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/createChatInviteLink`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         member_limit: memberLimit || 1,
@@ -314,14 +326,17 @@ export async function createChatInviteLink(
     });
 
     const data = await response.json();
-    
+
     if (!data.ok) {
-      return { success: false, error: data.description || 'Failed to create invite link' };
+      return {
+        success: false,
+        error: data.description || "Failed to create invite link",
+      };
     }
-    
+
     return { success: true, link: data.result.invite_link };
   } catch (error) {
-    console.error('Error creating invite link:', error);
+    console.error("Error creating invite link:", error);
     return { success: false, error: String(error) };
   }
 }
@@ -336,8 +351,8 @@ export async function forwardMessage(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/forwardMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         from_chat_id: fromChatId,
@@ -348,7 +363,7 @@ export async function forwardMessage(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error forwarding message:', error);
+    console.error("Error forwarding message:", error);
     return false;
   }
 }
@@ -363,8 +378,8 @@ export async function sendPhotoToChat(
 ): Promise<boolean> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
         photo: photoFileIdOrUrl,
@@ -375,8 +390,7 @@ export async function sendPhotoToChat(
     const data = await response.json();
     return data.ok;
   } catch (error) {
-    console.error('Error sending photo to chat:', error);
+    console.error("Error sending photo to chat:", error);
     return false;
   }
 }
-

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 
 // Toggle like on a photo
 export async function POST(request: NextRequest) {
@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     if (!photoId || !guestId) {
       return NextResponse.json(
-        { error: 'photoId and guestId are required' },
+        { error: "photoId and guestId are required" },
         { status: 400 }
       );
     }
@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ liked: true });
     }
   } catch (error) {
-    console.error('Error toggling like:', error);
+    console.error("Error toggling like:", error);
     return NextResponse.json(
-      { error: 'Failed to toggle like' },
+      { error: "Failed to toggle like" },
       { status: 500 }
     );
   }
@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const photoId = searchParams.get('photoId');
+    const photoId = searchParams.get("photoId");
 
     if (!photoId) {
       return NextResponse.json(
-        { error: 'photoId is required' },
+        { error: "photoId is required" },
         { status: 400 }
       );
     }
@@ -73,9 +73,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ count: likeCount });
   } catch (error) {
-    console.error('Error fetching like count:', error);
+    console.error("Error fetching like count:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch like count' },
+      { error: "Failed to fetch like count" },
       { status: 500 }
     );
   }
