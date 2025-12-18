@@ -2,7 +2,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 
 # Copy package files and prisma schema (needed for postinstall)
@@ -35,7 +35,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install production dependencies
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl curl
 
 # Copy standalone server
 COPY --from=builder /app/.next/standalone ./
@@ -62,6 +62,10 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV STORAGE_DIR=/app/public/uploads
+
+# Healthcheck to ensure server is responding
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Use entrypoint to run migrations, then start the standalone server
 ENTRYPOINT ["docker-entrypoint.sh"]
