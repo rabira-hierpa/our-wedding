@@ -2,7 +2,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat curl
+RUN apk add --no-cache libc6-compat curl wget
 WORKDIR /app
 
 # Copy package files and prisma schema (needed for postinstall)
@@ -35,7 +35,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install production dependencies
-RUN apk add --no-cache libc6-compat openssl curl
+RUN apk add --no-cache libc6-compat openssl curl wget
 
 # Copy standalone server
 COPY --from=builder /app/.next/standalone ./
