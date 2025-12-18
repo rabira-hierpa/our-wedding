@@ -13,6 +13,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify the photo exists
+    const photo = await prisma.photo.findUnique({
+      where: { id: photoId },
+    });
+
+    if (!photo) {
+      return NextResponse.json(
+        { error: "Photo not found" },
+        { status: 404 }
+      );
+    }
+
+    // Verify the guest exists
+    const guest = await prisma.guest.findUnique({
+      where: { id: guestId },
+    });
+
+    if (!guest) {
+      return NextResponse.json(
+        { error: "Guest not found. Please ensure you are registered." },
+        { status: 404 }
+      );
+    }
+
     // Check if like already exists
     const existingLike = await prisma.like.findUnique({
       where: {

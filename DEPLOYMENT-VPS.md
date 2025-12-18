@@ -188,9 +188,32 @@ volumes:
    - Click "Deploy"
    - Coolify will build and start your app
 
-## Step 5: Initialize Database
+## Step 5: Database Migrations
 
-After deployment, run migrations:
+The application **automatically runs migrations on startup** via `docker-entrypoint.sh`. You don't need to manually run migrations unless troubleshooting.
+
+### Automatic Migrations
+
+When the container starts, it automatically:
+
+1. Runs `npx prisma migrate deploy`
+2. Applies all pending migrations
+3. Starts the Next.js server
+
+Check the container logs to confirm:
+
+```bash
+docker logs <container-name>
+
+# You should see:
+# 📦 Running database migrations...
+# ✓ Database ready
+# 🌐 Starting Next.js server...
+```
+
+### Manual Migration (Troubleshooting)
+
+If you need to manually run migrations:
 
 ```bash
 # SSH into your VPS

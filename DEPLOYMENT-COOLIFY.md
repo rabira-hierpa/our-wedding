@@ -39,7 +39,9 @@ Coolify will automatically:
 
 - Build using the Dockerfile
 - Create standalone Next.js server
-- Set up database migrations on start
+- Run database migrations on container start (via docker-entrypoint.sh)
+
+**Important**: The application automatically runs `prisma migrate deploy` on startup to apply all pending migrations. This ensures your database schema is always up-to-date.
 
 #### 4. Health Check
 
@@ -61,6 +63,62 @@ docker-compose up --build
 2. Check photo appears in gallery
 3. Verify image URL works: `https://your-domain.com/api/uploads/[filename].jpg`
 4. Check uploads directory: `docker exec <container> ls /app/public/uploads`
+
+### Database Migrations
+
+The app automatically handles database migrations on startup via the `docker-entrypoint.sh` script:
+
+```bash
+#!/bin/sh
+set -e
+
+echo "📦 Running database migrations..."
+npx prisma migrate deploy || echo "⚠️  Migration failed or no migrations to run"
+
+echo "✓ Database ready"
+
+# Start the server
+exec "$@"
+```
+
+#### Manual Migration (if needed)
+
+If you need to manually run migrations:
+
+```bash
+# Access the container
+docker exec -it <container-name> sh
+
+# Run migrations
+npx prisma migrate deploy
+
+# Check migration status
+npx prisma migrate status
+```
+
+#### Migration Issues
+
+If migrations fail on startup:
+
+1. **Check database connection**:
+   ```bash
+   docker exec <container-name> npx prisma db execute --stdin <<< "SELECT 1;"
+   ```
+
+2. **View migration history**:
+   ```bash
+   docker exec <container-name> npx prisma migrate status
+   ```
+
+3. **Reset database** (⚠️ WARNING: This will delete all data!):
+   ```bash
+   docker exec <container-name> npx prisma migrate reset --force
+   ```
+
+4. **Check logs**:
+   ```bash
+   docker logs <container-name>
+   ```
 
 ### Troubleshooting
 
