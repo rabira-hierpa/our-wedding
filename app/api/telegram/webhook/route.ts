@@ -198,10 +198,12 @@ async function handleRegistration(
       where: { telegramUserId: BigInt(user.id) },
     });
 
+    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://your-wedding-site.com';
+
     if (existingGuest) {
       await sendMessage(
         chatId,
-        `Welcome back, ${user.first_name}! 👋\n\nSend me photos and I'll add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos`,
+        `Welcome back, ${user.first_name}! 👋\n\n📸 *What I can do:*\n• Upload photos to the wedding gallery\n• Leave wishes for the newlyweds\n• Join the wedding photo group\n\n🌐 *View Gallery:*\n${galleryUrl}\n\n*Commands:*\n/help - Show all commands\n/myphotos - Manage your photos\n/wish - Leave a message\n/joingroup - Join group`,
         messageId
       );
       return;
@@ -220,7 +222,7 @@ async function handleRegistration(
 
       await sendMessage(
         chatId,
-        `Hi ${user.first_name}! 🎉\n\nYou're now registered! Send me photos and they'll automatically be added to the wedding gallery.\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos\n/wish <message> - Leave a wish for the newlyweds\n/joingroup - Join the wedding photo group`,
+        `Hi ${user.first_name}! 🎉\n\n✅ *Registration Complete!*\n\n📸 *What you can do:*\n• Send me photos - I'll add them to the gallery\n• Send /wish <message> - Leave a heartfelt wish\n• Send /joingroup - Join the wedding photo group\n• Send /myphotos - View & delete your photos\n\n🌐 *View the gallery here:*\n${galleryUrl}\n\n💡 *Quick Start:*\nJust send me a photo right now to get started!\n\nUse /help to see all commands.`,
         messageId
       );
     } catch (error) {
@@ -711,7 +713,7 @@ async function processMediaGroupPhotos(
       if (result.success) {
         successCount++;
         // Send photo to wedding group chat if user is in the group
-        if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
+        if (WEDDING_GROUP_CHAT_ID && guest?.inWeddingGroup) {
           const groupCaption = `📸 Photo from ${user.first_name}${
             photoMsg.caption ? `\n\n${photoMsg.caption}` : ""
           }`;
@@ -848,7 +850,7 @@ async function handlePhotoUpload(
       );
 
       // Send photo to wedding group chat if user is in the group
-      if (WEDDING_GROUP_CHAT_ID && guest.inWeddingGroup) {
+      if (WEDDING_GROUP_CHAT_ID && guest?.inWeddingGroup) {
         const groupCaption = `📸 Photo from ${user.first_name}${
           caption ? `\n\n${caption}` : ""
         }`;
