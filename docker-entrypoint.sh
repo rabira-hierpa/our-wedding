@@ -11,7 +11,7 @@ echo "✓ Uploads directory ready: /app/public/uploads"
 
 # Run Prisma migrations
 echo "📦 Running database migrations..."
-npx prisma migrate deploy || echo "⚠️  Migration failed or no migrations to run"
+node_modules/.bin/prisma migrate deploy || echo "⚠️  Migration failed or no migrations to run"
 
 echo "✓ Database ready"
 

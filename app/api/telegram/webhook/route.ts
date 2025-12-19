@@ -210,9 +210,7 @@ async function handleRegistration(
             { text: "📸 My Photos", callback_data: "cmd_myphotos" },
             { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
           ],
-          [
-            { text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" },
-          ],
+          [{ text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" }],
         ],
         messageId
       );
@@ -238,9 +236,7 @@ async function handleRegistration(
             { text: "📸 My Photos", callback_data: "cmd_myphotos" },
             { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
           ],
-          [
-            { text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" },
-          ],
+          [{ text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" }],
         ],
         messageId
       );

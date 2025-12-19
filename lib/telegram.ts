@@ -317,12 +317,12 @@ export async function createChatInviteLink(
 ): Promise<{ success: boolean; link?: string; error?: string }> {
   try {
     const body: any = { chat_id: chatId };
-    
+
     // Only add member_limit if explicitly provided
     if (memberLimit !== undefined) {
       body.member_limit = memberLimit;
     }
-    
+
     const response = await fetch(`${TELEGRAM_API_BASE}/createChatInviteLink`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
