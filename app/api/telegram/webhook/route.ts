@@ -654,13 +654,17 @@ async function handleGroupJoinConfirmation(
 
       if (!inviteResult.success || !inviteResult.link) {
         console.error("Invite link creation failed:", inviteResult);
-        
+
         // Provide helpful error message
         const errorMsg = inviteResult.error?.includes("not enough rights")
           ? "⚠️ Bot needs admin rights in the group to create invite links.\n\nPlease ask the group admin to:\n1. Make the bot an admin\n2. OR set WEDDING_GROUP_INVITE_LINK in environment variables"
           : "Failed to create invite link. Please contact the admin.";
-        
-        await answerCallbackQuery(callbackQueryId, "Cannot create invite link", true);
+
+        await answerCallbackQuery(
+          callbackQueryId,
+          "Cannot create invite link",
+          true
+        );
         await sendMessage(chatId, errorMsg, messageId);
         return;
       }
