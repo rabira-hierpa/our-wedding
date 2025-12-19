@@ -202,9 +202,18 @@ async function handleRegistration(
       process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
 
     if (existingGuest) {
-      await sendMessage(
+      await sendMessageWithButtons(
         chatId,
-        `Welcome back, ${user.first_name}! 👋\n\n📸 *What I can do:*\n• Upload photos to the wedding gallery\n• Leave wishes for the newlyweds\n• Join the wedding photo group\n\n🌐 *View Gallery:*\n${galleryUrl}\n\n*Commands:*\n/help - Show all commands\n/myphotos - Manage your photos\n/wish - Leave a message\n/joingroup - Join group`,
+        `Welcome back, ${user.first_name}! 👋\n\n📸 Send me photos to add them to the gallery!\n\n🌐 *View Gallery:*\n${galleryUrl}`,
+        [
+          [
+            { text: "📸 My Photos", callback_data: "cmd_myphotos" },
+            { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
+          ],
+          [
+            { text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" },
+          ],
+        ],
         messageId
       );
       return;
@@ -221,9 +230,18 @@ async function handleRegistration(
         },
       });
 
-      await sendMessage(
+      await sendMessageWithButtons(
         chatId,
-        `Hi ${user.first_name}! 🎉\n\n✅ *Registration Complete!*\n\n📸 *What you can do:*\n• Send me photos - I'll add them to the gallery\n• Send /wish <message> - Leave a heartfelt wish\n• Send /joingroup - Join the wedding photo group\n• Send /myphotos - View & delete your photos\n\n🌐 *View the gallery here:*\n${galleryUrl}\n\n💡 *Quick Start:*\nJust send me a photo right now to get started!\n\nUse /help to see all commands.`,
+        `Hi ${user.first_name}! 🎉\n\n✅ *Registration Complete!*\n\n📸 You can now send photos and they'll be added to the wedding gallery!\n\n🌐 *View Gallery:*\n${galleryUrl}`,
+        [
+          [
+            { text: "📸 My Photos", callback_data: "cmd_myphotos" },
+            { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
+          ],
+          [
+            { text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" },
+          ],
+        ],
         messageId
       );
     } catch (error) {
@@ -453,6 +471,37 @@ async function handleCallbackQuery(callbackQuery: any) {
         );
         await deleteMessage(chatId, messageId);
       }
+      return;
+    }
+
+    // Handle command buttons
+    if (data?.startsWith("cmd_")) {
+      const command = data.replace("cmd_", "");
+
+      switch (command) {
+        case "myphotos":
+          await answerCallbackQuery(callbackQuery.id);
+          await handleMyPhotos(user, chatId, messageId);
+          break;
+
+        case "wish":
+          await answerCallbackQuery(callbackQuery.id);
+          await sendMessage(
+            chatId,
+            "💝 Please send your wish in the following format:\n\n`/wish Your heartfelt message here`\n\nExample:\n`/wish Wishing you a lifetime of love and happiness! 💕`",
+            messageId
+          );
+          break;
+
+        case "joingroup":
+          await answerCallbackQuery(callbackQuery.id);
+          await handleJoinGroupCommand(user, chatId, messageId);
+          break;
+
+        default:
+          await answerCallbackQuery(callbackQuery.id, "Unknown command");
+      }
+      return;
     }
   } catch (error) {
     console.error("Error in handleCallbackQuery:", error);
@@ -599,7 +648,7 @@ async function handleGroupJoinConfirmation(
       return;
     }
 
-    // Create invite link
+    // Create invite link (no member limit for multiple uses)
     const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID);
 
     if (!inviteResult.success || !inviteResult.link) {
