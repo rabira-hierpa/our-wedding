@@ -47,6 +47,20 @@ export async function POST(request: NextRequest) {
     const update: TelegramUpdate = await request.json();
     console.log("Received update:", JSON.stringify(update, null, 2));
 
+    // Log group chat IDs for debugging (helps find the correct WEDDING_GROUP_CHAT_ID)
+    if (
+      update.message?.chat?.type === "group" ||
+      update.message?.chat?.type === "supergroup"
+    ) {
+      console.log("📊 GROUP CHAT DETECTED:");
+      console.log(`  Title: ${update.message.chat.title}`);
+      console.log(`  Chat ID: ${update.message.chat.id}`);
+      console.log(`  Type: ${update.message.chat.type}`);
+      console.log(
+        `  👉 Add this to your .env: WEDDING_GROUP_CHAT_ID=${update.message.chat.id}`
+      );
+    }
+
     // Handle callback queries (button presses)
     if (update.callback_query) {
       await handleCallbackQuery(update.callback_query);
