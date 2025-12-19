@@ -332,6 +332,11 @@ export async function createChatInviteLink(
     const data = await response.json();
 
     if (!data.ok) {
+      console.error("Telegram API error:", {
+        error_code: data.error_code,
+        description: data.description,
+        chatId,
+      });
       return {
         success: false,
         error: data.description || "Failed to create invite link",

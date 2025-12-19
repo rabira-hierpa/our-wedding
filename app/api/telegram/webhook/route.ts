@@ -25,6 +25,8 @@ const WEDDING_GROUP_CHAT_ID = process.env.WEDDING_GROUP_CHAT_ID
   ? parseInt(process.env.WEDDING_GROUP_CHAT_ID)
   : null;
 
+const WEDDING_GROUP_INVITE_LINK = process.env.WEDDING_GROUP_INVITE_LINK || null;
+
 // Track media groups to handle multiple photos sent together
 const mediaGroups = new Map<
   string,
@@ -644,17 +646,26 @@ async function handleGroupJoinConfirmation(
       return;
     }
 
-    // Create invite link (no member limit for multiple uses)
-    const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID);
+    let inviteLink = WEDDING_GROUP_INVITE_LINK;
 
-    if (!inviteResult.success || !inviteResult.link) {
-      console.error("Invite link creation failed:", inviteResult);
-      await answerCallbackQuery(
-        callbackQueryId,
-        "Failed to create invite link. Please contact the admin.",
-        true
-      );
-      return;
+    // If no manual invite link, try to create one
+    if (!inviteLink) {
+      const inviteResult = await createChatInviteLink(WEDDING_GROUP_CHAT_ID);
+
+      if (!inviteResult.success || !inviteResult.link) {
+        console.error("Invite link creation failed:", inviteResult);
+        
+        // Provide helpful error message
+        const errorMsg = inviteResult.error?.includes("not enough rights")
+          ? "⚠️ Bot needs admin rights in the group to create invite links.\n\nPlease ask the group admin to:\n1. Make the bot an admin\n2. OR set WEDDING_GROUP_INVITE_LINK in environment variables"
+          : "Failed to create invite link. Please contact the admin.";
+        
+        await answerCallbackQuery(callbackQueryId, "Cannot create invite link", true);
+        await sendMessage(chatId, errorMsg, messageId);
+        return;
+      }
+
+      inviteLink = inviteResult.link;
     }
 
     // Update guest status - find guest first, then update by ID
@@ -675,7 +686,7 @@ async function handleGroupJoinConfirmation(
     // Send invite link
     await sendMessage(
       chatId,
-      `🎉 Great! Click the link below to join the wedding group:\n\n${inviteResult.link}\n\n✨ All your future photos will be automatically shared with the group!`
+      `🎉 Great! Click the link below to join the wedding group:\n\n${inviteLink}\n\n✨ All your future photos will be automatically shared with the group!`
     );
 
     await answerCallbackQuery(callbackQueryId, "Invite sent! ✅");

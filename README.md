@@ -73,17 +73,20 @@ WEDDING_GROUP_CHAT_ID=your-group-chat-id
 ```
 
 **Getting Supabase Keys:**
+
 - Go to Project Settings > API
 - Copy `URL` for `NEXT_PUBLIC_SUPABASE_URL`
 - Copy `anon/public` key for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - Copy `service_role` key for `SUPABASE_SERVICE_ROLE_KEY`
 
 **Generating Webhook Secret:**
+
 ```bash
 openssl rand -base64 32
 ```
 
 **Getting Group Chat ID:**
+
 1. Add your bot to the group
 2. Send a message in the group
 3. Visit `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
@@ -142,6 +145,7 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
 ### Deploy to Other Platforms
 
 This app works on any platform that supports Next.js:
+
 - Netlify
 - AWS Amplify
 - Railway
@@ -191,6 +195,7 @@ Receives updates from Telegram bot.
 **Security**: Verifies `X-Telegram-Bot-Api-Secret-Token` header
 
 **Handles**:
+
 - `/start` command - Guest registration
 - Photo messages - Upload to gallery
 - Text messages - Send help text
@@ -200,6 +205,7 @@ Receives updates from Telegram bot.
 Returns all photos with guest information.
 
 **Response**:
+
 ```json
 {
   "photos": [
@@ -225,29 +231,29 @@ Returns all photos with guest information.
 
 ### `guests` Table
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| telegram_user_id | BIGINT | Telegram user ID (unique) |
-| telegram_username | TEXT | Telegram username |
-| first_name | TEXT | First name |
-| last_name | TEXT | Last name |
-| registered_at | TIMESTAMPTZ | When user sent /start |
-| created_at | TIMESTAMPTZ | Record creation time |
-| updated_at | TIMESTAMPTZ | Last update time |
+| Column            | Type        | Description               |
+| ----------------- | ----------- | ------------------------- |
+| id                | UUID        | Primary key               |
+| telegram_user_id  | BIGINT      | Telegram user ID (unique) |
+| telegram_username | TEXT        | Telegram username         |
+| first_name        | TEXT        | First name                |
+| last_name         | TEXT        | Last name                 |
+| registered_at     | TIMESTAMPTZ | When user sent /start     |
+| created_at        | TIMESTAMPTZ | Record creation time      |
+| updated_at        | TIMESTAMPTZ | Last update time          |
 
 ### `photos` Table
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| guest_id | UUID | Foreign key to guests |
-| storage_path | TEXT | Path in Supabase Storage |
-| public_url | TEXT | Public URL |
-| telegram_file_id | TEXT | Telegram file ID |
-| caption | TEXT | Photo caption (optional) |
-| uploaded_at | TIMESTAMPTZ | When photo was sent |
-| created_at | TIMESTAMPTZ | Record creation time |
+| Column           | Type        | Description              |
+| ---------------- | ----------- | ------------------------ |
+| id               | UUID        | Primary key              |
+| guest_id         | UUID        | Foreign key to guests    |
+| storage_path     | TEXT        | Path in Supabase Storage |
+| public_url       | TEXT        | Public URL               |
+| telegram_file_id | TEXT        | Telegram file ID         |
+| caption          | TEXT        | Photo caption (optional) |
+| uploaded_at      | TIMESTAMPTZ | When photo was sent      |
+| created_at       | TIMESTAMPTZ | Record creation time     |
 
 ## Security Features
 
@@ -262,6 +268,7 @@ Returns all photos with guest information.
 ### Update Wedding Group Chat ID
 
 Add to `.env.local`:
+
 ```bash
 WEDDING_GROUP_CHAT_ID=-1234567890
 ```
@@ -269,6 +276,7 @@ WEDDING_GROUP_CHAT_ID=-1234567890
 ### Customize Gallery Appearance
 
 Edit `components/PhotoGallery.tsx`:
+
 - Change column count: Modify `columns-1 sm:columns-2 md:columns-3 lg:columns-4`
 - Update colors: Change Tailwind classes
 - Adjust polling interval: Change `10000` (10 seconds) in `setInterval`
@@ -276,6 +284,7 @@ Edit `components/PhotoGallery.tsx`:
 ### Customize Messages
 
 Edit bot responses in `app/api/telegram/webhook/route.ts`:
+
 - Registration message
 - Upload confirmation
 - Help text
@@ -285,6 +294,7 @@ Edit bot responses in `app/api/telegram/webhook/route.ts`:
 ### Webhook not receiving updates
 
 1. Check webhook status:
+
 ```bash
 curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 ```
@@ -305,6 +315,32 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 1. Check browser console for errors
 2. Verify `/api/photos` endpoint returns data
 3. Check Supabase RLS policies allow public read
+
+### "Failed to create invite link" error when users join
+
+When users try to join the wedding group via the bot, you may see "Failed to create invite link. Please contact the admin." This happens because the Telegram Bot API requires specific permissions to create invite links programmatically.
+
+**Two solutions:**
+
+**Option 1: Make the bot an admin (Recommended)**
+
+1. Open your Telegram wedding group
+2. Go to Group Settings → Administrators
+3. Add your bot as an administrator
+4. Enable the "Invite users via link" permission
+5. Test by using `/joingroup` command in the bot
+
+**Option 2: Use a manual invite link (Workaround)**
+
+1. Create a permanent invite link manually in your Telegram group:
+   - Group Settings → Invite Links → Create a new link
+   - Set it to never expire
+   - Copy the link
+2. Add this environment variable to your deployment:
+   ```
+   WEDDING_GROUP_INVITE_LINK=https://t.me/+your_invite_link_here
+   ```
+3. The bot will use this link instead of creating one dynamically
 
 ## License
 
