@@ -88,17 +88,22 @@ export async function POST(request: NextRequest) {
     }
 
     // If this is a group message, only respond when bot is mentioned
-    const isGroup = message.chat.type === "group" || message.chat.type === "supergroup";
+    const isGroup =
+      message.chat.type === "group" || message.chat.type === "supergroup";
     if (isGroup) {
       // Check if bot is mentioned in the message text or entities
       const botUsername = process.env.TELEGRAM_BOT_USERNAME || "waiter";
-      const isMentioned = 
+      const isMentioned =
         message.text?.includes(`@${botUsername}`) ||
-        message.entities?.some(entity => 
-          entity.type === "mention" && 
-          message.text?.substring(entity.offset, entity.offset + entity.length) === `@${botUsername}`
+        message.entities?.some(
+          (entity) =>
+            entity.type === "mention" &&
+            message.text?.substring(
+              entity.offset,
+              entity.offset + entity.length
+            ) === `@${botUsername}`
         );
-      
+
       // Only process commands or if bot is mentioned
       if (!isMentioned && !message.text?.startsWith("/")) {
         return NextResponse.json({ ok: true });
@@ -248,13 +253,19 @@ async function handleRegistration(
     if (existingGuest) {
       await sendMessageWithButtons(
         chatId,
-        `Welcome back, ${user.first_name}! 👋\n\n📸 Send me photos to add them to the gallery!\n\n🌐 *View Gallery:*\n${galleryUrl}`,
+        `Welcome back, ${user.first_name}! 👋\n\n*🎊 Wedding Photo Gallery Bot*\n\nI'm here to help you share and celebrate wedding moments!\n\n*What I can do for you:*\n\n📸 *Share Photos*\nSend me any wedding photos and I'll add them to our beautiful online gallery. You can send multiple photos at once!\n\n💝 *Leave Wishes*\nSend your heartfelt blessings and wishes for the newlyweds\n\n👥 *Join the Group*\nConnect with other guests in our wedding photo group\n\n🖼️ *Manage Your Photos*\nView all your uploaded photos and delete any if needed\n\n📍 *Event Venue*\nGood News Church - Get directions below\n\n🌐 *View Gallery:*\n${galleryUrl}`,
         [
           [
             { text: "📸 My Photos", callback_data: "cmd_myphotos" },
             { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
           ],
           [{ text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" }],
+          [
+            {
+              text: "📍 Venue Location",
+              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+            },
+          ],
         ],
         messageId
       );
@@ -274,13 +285,19 @@ async function handleRegistration(
 
       await sendMessageWithButtons(
         chatId,
-        `Hi ${user.first_name}! 🎉\n\n✅ *Registration Complete!*\n\n📸 You can now send photos and they'll be added to the wedding gallery!\n\n🌐 *View Gallery:*\n${galleryUrl}`,
+        `Hi ${user.first_name}! 🎉\n\n✅ *Registration Complete!*\n\n*🎊 Welcome to the Wedding Photo Gallery!*\n\nI'm your personal photo assistant for this special celebration!\n\n*Here's what you can do:*\n\n📸 *Share Photos*\nJust send me any wedding photos (one or multiple) and I'll automatically add them to our beautiful online gallery\n\n💝 *Leave Wishes*\nTap the button below or use /wish to send your heartfelt blessings to the newlyweds\n\n👥 *Join Wedding Group*\nConnect with other guests and share the celebration together\n\n🖼️ *Manage Photos*\nView your uploaded photos anytime and delete any if needed\n\n📍 *Event Location*\nGood News Church - Tap below for directions\n\n*Commands:*\n/help - Show all commands\n/myphotos - View your photos\n/wish - Leave a wish\n\n🌐 *View Gallery:*\n${galleryUrl}`,
         [
           [
             { text: "📸 My Photos", callback_data: "cmd_myphotos" },
             { text: "💝 Leave a Wish", callback_data: "cmd_wish" },
           ],
           [{ text: "👥 Join Wedding Group", callback_data: "cmd_joingroup" }],
+          [
+            {
+              text: "📍 Venue Location",
+              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+            },
+          ],
         ],
         messageId
       );
@@ -302,16 +319,24 @@ async function handleRegistration(
  */
 async function handleNewMemberWelcome(newMember: any, groupChatId: number) {
   try {
-    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
-    
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+
     // Send private welcome message to the new member
-    const welcomeMessage = `🎉 Welcome to the Wedding Photo Group!\n\n👋 Hi ${newMember.first_name}!\n\nYou've been added to our wedding photo group. Here's what you can do:\n\n📸 *Share Photos:* Send your wedding photos to me directly @${process.env.TELEGRAM_BOT_USERNAME || "waiter"} and they'll be added to the gallery\n\n💝 *Leave Wishes:* Use /wish command to send your blessings to the newlyweds\n\n🌐 *View Gallery:*\n${galleryUrl}\n\n*Get Started:*\nSend /start to me in private chat to register and start uploading photos!`;
-    
+    const welcomeMessage = `🎉 Welcome to the Wedding Photo Group!\n\n👋 Hi ${
+      newMember.first_name
+    }!\n\nYou've been added to our wedding photo group. Here's what you can do:\n\n📸 *Share Photos:* Send your wedding photos to me directly @${
+      process.env.TELEGRAM_BOT_USERNAME || "waiter"
+    } and they'll be added to the gallery\n\n💝 *Leave Wishes:* Use /wish command to send your blessings to the newlyweds\n\n🌐 *View Gallery:*\n${galleryUrl}\n\n*Get Started:*\nSend /start to me in private chat to register and start uploading photos!`;
+
     try {
       // Send private message to the new member
       await sendMessage(newMember.id, welcomeMessage);
     } catch (error) {
-      console.error(`Failed to send welcome message to user ${newMember.id}:`, error);
+      console.error(
+        `Failed to send welcome message to user ${newMember.id}:`,
+        error
+      );
       // If private message fails (user hasn't started bot), we can't send them a private message
       // Telegram doesn't allow bots to initiate conversations
     }

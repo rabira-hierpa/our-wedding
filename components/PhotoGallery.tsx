@@ -230,7 +230,7 @@ export default function PhotoGallery() {
 
   return (
     <>
-      <section className="py-16 px-4 bg-gradient-to-br from-champagne-50 via-white to-gold-50">
+      <section id="gallery" className="py-16 px-4 bg-gradient-to-br from-champagne-50 via-white to-gold-50">
         <div className="max-w-7xl mx-auto">
           <AnimatedSection>
             <div className="text-center mb-12">

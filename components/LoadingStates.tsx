@@ -42,7 +42,10 @@ export function GalleryLoadingSkeleton() {
 
 export function EmptyGalleryState() {
   return (
-    <div className="flex items-center justify-center min-h-[400px] py-20">
+    <div
+      id="gallery"
+      className="flex items-center justify-center min-h-[400px] py-20"
+    >
       <motion.div
         className="text-center"
         initial={{ opacity: 0, scale: 0.9 }}

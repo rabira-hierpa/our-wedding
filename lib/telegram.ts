@@ -247,7 +247,7 @@ export async function deleteMessage(
 export async function sendMessageWithButtons(
   chatId: number,
   text: string,
-  buttons: { text: string; callback_data: string }[][],
+  buttons: { text: string; callback_data?: string; url?: string }[][],
   replyToMessageId?: number
 ): Promise<boolean> {
   try {
