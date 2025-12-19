@@ -23,6 +23,16 @@ export interface TelegramMessage {
   document?: TelegramDocument;
   video?: TelegramVideo;
   media_group_id?: string;
+  entities?: TelegramMessageEntity[];
+  new_chat_members?: TelegramUser[];
+}
+
+export interface TelegramMessageEntity {
+  type: string;
+  offset: number;
+  length: number;
+  url?: string;
+  user?: TelegramUser;
 }
 
 export interface TelegramDocument {

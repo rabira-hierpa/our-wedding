@@ -72,9 +72,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Handle new members joining the group
+    if (message.new_chat_members && message.new_chat_members.length > 0) {
+      for (const newMember of message.new_chat_members) {
+        if (!newMember.is_bot) {
+          await handleNewMemberWelcome(newMember, message.chat.id);
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const user = message.from;
     if (!user || user.is_bot) {
       return NextResponse.json({ ok: true });
+    }
+
+    // If this is a group message, only respond when bot is mentioned
+    const isGroup = message.chat.type === "group" || message.chat.type === "supergroup";
+    if (isGroup) {
+      // Check if bot is mentioned in the message text or entities
+      const botUsername = process.env.TELEGRAM_BOT_USERNAME || "waiter";
+      const isMentioned = 
+        message.text?.includes(`@${botUsername}`) ||
+        message.entities?.some(entity => 
+          entity.type === "mention" && 
+          message.text?.substring(entity.offset, entity.offset + entity.length) === `@${botUsername}`
+        );
+      
+      // Only process commands or if bot is mentioned
+      if (!isMentioned && !message.text?.startsWith("/")) {
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // Handle /start command for registration
@@ -266,6 +294,29 @@ async function handleRegistration(
     }
   } catch (error) {
     console.error("Error in handleRegistration:", error);
+  }
+}
+
+/**
+ * Handles welcoming new members to the group (sends private message)
+ */
+async function handleNewMemberWelcome(newMember: any, groupChatId: number) {
+  try {
+    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+    
+    // Send private welcome message to the new member
+    const welcomeMessage = `🎉 Welcome to the Wedding Photo Group!\n\n👋 Hi ${newMember.first_name}!\n\nYou've been added to our wedding photo group. Here's what you can do:\n\n📸 *Share Photos:* Send your wedding photos to me directly @${process.env.TELEGRAM_BOT_USERNAME || "waiter"} and they'll be added to the gallery\n\n💝 *Leave Wishes:* Use /wish command to send your blessings to the newlyweds\n\n🌐 *View Gallery:*\n${galleryUrl}\n\n*Get Started:*\nSend /start to me in private chat to register and start uploading photos!`;
+    
+    try {
+      // Send private message to the new member
+      await sendMessage(newMember.id, welcomeMessage);
+    } catch (error) {
+      console.error(`Failed to send welcome message to user ${newMember.id}:`, error);
+      // If private message fails (user hasn't started bot), we can't send them a private message
+      // Telegram doesn't allow bots to initiate conversations
+    }
+  } catch (error) {
+    console.error("Error in handleNewMemberWelcome:", error);
   }
 }
 
