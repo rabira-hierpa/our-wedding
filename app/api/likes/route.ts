@@ -23,20 +23,16 @@ export async function POST(request: NextRequest) {
     }
 
     // For web users, create a guest if it doesn't exist
-    let guest = await prisma.guest.findUnique({
+    // Use upsert to handle race conditions and existing guests
+    const guest = await prisma.guest.upsert({
       where: { id: clientGuestId },
+      create: {
+        id: clientGuestId,
+        telegramUserId: BigInt(0), // Web users don't have telegram ID
+        firstName: "Web Guest",
+      },
+      update: {}, // No update needed if guest already exists
     });
-
-    if (!guest) {
-      // Create a web guest
-      guest = await prisma.guest.create({
-        data: {
-          id: clientGuestId,
-          telegramUserId: BigInt(0), // Web users don't have telegram ID
-          firstName: "Web Guest",
-        },
-      });
-    }
 
     const guestId = guest.id;
 
