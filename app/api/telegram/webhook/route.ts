@@ -263,7 +263,7 @@ async function handleRegistration(
           [
             {
               text: "📍 Venue Location",
-              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+              url: "https://maps.app.goo.gl/AvFG44evk6f4GQx36",
             },
           ],
         ],
@@ -295,7 +295,7 @@ async function handleRegistration(
           [
             {
               text: "📍 Venue Location",
-              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+              url: "https://maps.app.goo.gl/AvFG44evk6f4GQx36",
             },
           ],
         ],
