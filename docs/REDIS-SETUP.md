@@ -18,7 +18,7 @@
 1. Go to [upstash.com](https://upstash.com/)
 2. Sign up (free)
 3. Create database → Select region closest to your server
-4. Copy the `UPSTASH_REDIS_REST_URL` 
+4. Copy the `UPSTASH_REDIS_REST_URL`
 5. Add to Coolify environment variables:
    ```
    REDIS_URL=<your-upstash-url>
@@ -29,6 +29,7 @@
 ## Option 3: No Redis (Fallback Mode)
 
 If you don't have time to set up Redis:
+
 - App will work WITHOUT Redis
 - Uses Next.js ISR caching instead
 - Performance will be degraded but functional
@@ -39,6 +40,7 @@ If you don't have time to set up Redis:
 ## Testing Redis Connection
 
 After deployment, check logs:
+
 ```
 ✅ Redis connected successfully    <- Good!
 ⚠️  REDIS_URL not set              <- Working but degraded
@@ -49,8 +51,8 @@ After deployment, check logs:
 
 ## Performance Impact
 
-| Setup | API Calls/sec | DB Queries/sec | Max Users |
-|-------|---------------|----------------|-----------|
-| No Redis | 60 | 120 | ~100 |
-| With Redis | 4 | 8 | ~600 |
-| Redis + SSE | 4 | 1-2 | **1000+** |
+| Setup       | API Calls/sec | DB Queries/sec | Max Users |
+| ----------- | ------------- | -------------- | --------- |
+| No Redis    | 60            | 120            | ~100      |
+| With Redis  | 4             | 8              | ~600      |
+| Redis + SSE | 4             | 1-2            | **1000+** |

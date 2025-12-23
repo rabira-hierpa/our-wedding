@@ -23,7 +23,9 @@ if (process.env.REDIS_URL) {
     console.log("✅ Redis connected successfully");
   });
 } else {
-  console.warn("⚠️  REDIS_URL not set - caching disabled, may struggle with 600+ users");
+  console.warn(
+    "⚠️  REDIS_URL not set - caching disabled, may struggle with 600+ users"
+  );
 }
 
 export default redis;

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 
 // Server-Sent Events endpoint for real-time updates
 export const dynamic = "force-dynamic";
@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
   // Function to send SSE message
   const sendEvent = async (data: any) => {
     try {
-      await writer.write(
-        encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
-      );
+      await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
     } catch (error) {
       console.error("Error writing SSE:", error);
     }

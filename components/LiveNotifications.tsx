@@ -59,7 +59,7 @@ export default function LiveNotifications() {
                 }`.trim(),
                 timestamp: new Date(),
               });
-              
+
               // Trigger gallery refresh
               window.dispatchEvent(new Event("galleryRefresh"));
             } else if (data.type === "wish") {
@@ -72,7 +72,7 @@ export default function LiveNotifications() {
                 }`.trim(),
                 timestamp: new Date(),
               });
-              
+
               // Trigger gallery refresh
               window.dispatchEvent(new Event("galleryRefresh"));
             }
@@ -82,7 +82,10 @@ export default function LiveNotifications() {
         };
 
         eventSource.onerror = (error) => {
-          console.error("SSE connection error, falling back to polling:", error);
+          console.error(
+            "SSE connection error, falling back to polling:",
+            error
+          );
           eventSource?.close();
           startPolling();
         };
@@ -99,11 +102,11 @@ export default function LiveNotifications() {
       const checkForUpdates = async () => {
         try {
           const [photosRes, wishesRes] = await Promise.all([
-            fetch("/api/photos", { 
-              cache: "no-store"
+            fetch("/api/photos", {
+              cache: "no-store",
             }),
-            fetch("/api/wishes", { 
-              cache: "no-store"
+            fetch("/api/wishes", {
+              cache: "no-store",
             }),
           ]);
 
