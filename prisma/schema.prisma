@@ -30,14 +30,15 @@ model Guest {
 }
 
 model Photo {
-  id             String   @id @default(uuid())
-  guestId        String   @map("guest_id")
-  storagePath    String   @map("storage_path")
-  publicUrl      String   @map("public_url")
-  telegramFileId String   @map("telegram_file_id")
-  caption        String?
-  uploadedAt     DateTime @default(now()) @map("uploaded_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id                String   @id @default(uuid())
+  guestId           String   @map("guest_id")
+  storagePath       String   @map("storage_path")
+  publicUrl         String   @map("public_url")
+  telegramFileId    String   @map("telegram_file_id")
+  groupMessageId    String?  @map("group_message_id") // Track message in group for deletion
+  caption           String?
+  uploadedAt        DateTime @default(now()) @map("uploaded_at")
+  createdAt         DateTime @default(now()) @map("created_at")
 
   guest Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
   likes Like[]
