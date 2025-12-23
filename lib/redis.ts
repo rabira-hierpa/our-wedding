@@ -30,6 +30,13 @@ if (process.env.REDIS_URL) {
 
 export default redis;
 
+// Custom JSON serializer that handles BigInt
+function safeStringify(data: any): string {
+  return JSON.stringify(data, (_, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  );
+}
+
 // Cache helper functions
 export async function getCached<T>(
   key: string,
@@ -47,7 +54,7 @@ export async function getCached<T>(
     }
 
     const data = await fallback();
-    await redis.setex(key, ttl, JSON.stringify(data));
+    await redis.setex(key, ttl, safeStringify(data));
     return data;
   } catch (error) {
     console.error("Redis cache error:", error);
