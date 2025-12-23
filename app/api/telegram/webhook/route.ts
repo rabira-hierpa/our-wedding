@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
   try {
     // Verify the request comes from Telegram
     const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
-    console.log("Received secret header:", secret);
     console.log("Expected secret:", process.env.TELEGRAM_WEBHOOK_SECRET);
     if (!secret || !verifyTelegramRequest(secret)) {
       console.error("Invalid or missing secret token");
@@ -45,21 +44,20 @@ export async function POST(request: NextRequest) {
     }
 
     const update: TelegramUpdate = await request.json();
-    console.log("Received update:", JSON.stringify(update, null, 2));
 
-    // Log group chat IDs for debugging (helps find the correct WEDDING_GROUP_CHAT_ID)
-    if (
-      update.message?.chat?.type === "group" ||
-      update.message?.chat?.type === "supergroup"
-    ) {
-      console.log("📊 GROUP CHAT DETECTED:");
-      console.log(`  Title: ${update.message.chat.title}`);
-      console.log(`  Chat ID: ${update.message.chat.id}`);
-      console.log(`  Type: ${update.message.chat.type}`);
-      console.log(
-        `  👉 Add this to your .env: WEDDING_GROUP_CHAT_ID=${update.message.chat.id}`
-      );
-    }
+    // // Log group chat IDs for debugging (helps find the correct WEDDING_GROUP_CHAT_ID)
+    // if (
+    //   update.message?.chat?.type === "group" ||
+    //   update.message?.chat?.type === "supergroup"
+    // ) {
+    //   console.log("📊 GROUP CHAT DETECTED:");
+    //   console.log(`  Title: ${update.message.chat.title}`);
+    //   console.log(`  Chat ID: ${update.message.chat.id}`);
+    //   console.log(`  Type: ${update.message.chat.type}`);
+    //   console.log(
+    //     `  👉 Add this to your .env: WEDDING_GROUP_CHAT_ID=${update.message.chat.id}`
+    //   );
+    // }
 
     // Handle callback queries (button presses)
     if (update.callback_query) {
@@ -176,11 +174,12 @@ export async function POST(request: NextRequest) {
     if (message.document) {
       const mimeType = message.document.mime_type || "";
       const fileName = message.document.file_name || "";
-      
+
       // Check if document is an image (including HEIC/HEIF)
-      const isImage = mimeType.startsWith("image/") || 
-                      /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(fileName);
-      
+      const isImage =
+        mimeType.startsWith("image/") ||
+        /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(fileName);
+
       if (isImage) {
         await handleDocumentPhoto(
           user,
@@ -635,13 +634,15 @@ async function handleWishCommand(
     }
 
     // Ensure guest is registered
-    const guest = await prisma.guest.findFirst({
-      where: { telegramUserId: BigInt(user.id) },
+    let guest = await prisma.guest.findFirst({
+      where: { 
+        telegramUserId: BigInt(user.id) 
+      },
     });
 
     if (!guest) {
-      // Auto-register if not already
-      await prisma.guest.create({
+      // Create new guest if not found
+      guest = await prisma.guest.create({
         data: {
           telegramUserId: BigInt(user.id),
           telegramUsername: user.username,
@@ -654,18 +655,15 @@ async function handleWishCommand(
     // Save wish to database
     await prisma.wish.create({
       data: {
-        guestId:
-          guest?.id ||
-          (await prisma.guest.findFirst({
-            where: { telegramUserId: BigInt(user.id) },
-          }))!.id,
+        guestId: guest.id,
         message: wish,
       },
     });
 
+    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     await sendMessage(
       chatId,
-      `💌 Thank you for your beautiful wish!\n\n"${wish}"\n\n✨ Your message will be displayed on the wedding gallery website.`,
+      `💌 Thank you for your beautiful wish!\n\n"${wish}"\n\n✨ Your message has been added to the gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
       messageId
     );
   } catch (error) {
@@ -681,10 +679,7 @@ async function handleWishCommand(
 /**
  * Handles /upload_photos command
  */
-async function handleUploadPhotosCommand(
-  chatId: number,
-  messageId: number
-) {
+async function handleUploadPhotosCommand(chatId: number, messageId: number) {
   const galleryUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
 
@@ -916,7 +911,8 @@ async function processMediaGroupPhotos(
     }
 
     // Send summary message
-    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     let summaryMessage = "";
     if (successCount > 0) {
       summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery\n`;
@@ -1028,7 +1024,8 @@ async function handlePhotoUpload(
     const result = await uploadSinglePhoto(user, guest, photos, caption);
 
     if (result.success && result.uploadResult) {
-      const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+      const galleryUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
       await sendMessage(
         chatId,
         `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
@@ -1137,7 +1134,8 @@ async function handleDocumentPhoto(
       },
     });
 
-    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     await sendMessage(
       chatId,
       `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,

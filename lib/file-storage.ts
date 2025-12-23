@@ -20,28 +20,31 @@ async function ensureStorageDir() {
 /**
  * Converts HEIC/HEIF images to JPEG using sharp
  */
-async function convertToJPEG(fileBuffer: Buffer, fileName: string): Promise<{ buffer: Buffer; fileName: string }> {
+async function convertToJPEG(
+  fileBuffer: Buffer,
+  fileName: string
+): Promise<{ buffer: Buffer; fileName: string }> {
   const ext = path.extname(fileName).toLowerCase();
-  
+
   // Check if conversion is needed
-  if (ext === '.heic' || ext === '.heif') {
+  if (ext === ".heic" || ext === ".heif") {
     try {
       console.log(`Converting ${fileName} from HEIC/HEIF to JPEG...`);
       const convertedBuffer = await sharp(fileBuffer)
         .jpeg({ quality: 90 })
         .toBuffer();
-      
-      const newFileName = fileName.replace(/\.(heic|heif)$/i, '.jpg');
+
+      const newFileName = fileName.replace(/\.(heic|heif)$/i, ".jpg");
       console.log(`Conversion successful: ${newFileName}`);
-      
+
       return { buffer: convertedBuffer, fileName: newFileName };
     } catch (error) {
-      console.error('Error converting HEIC/HEIF:', error);
+      console.error("Error converting HEIC/HEIF:", error);
       // If conversion fails, return original
       return { buffer: fileBuffer, fileName };
     }
   }
-  
+
   // No conversion needed
   return { buffer: fileBuffer, fileName };
 }
@@ -58,7 +61,8 @@ export async function uploadPhotoToStorage(
     await ensureStorageDir();
 
     // Convert HEIC/HEIF to JPEG if needed
-    const { buffer: processedBuffer, fileName: processedFileName } = await convertToJPEG(fileBuffer, fileName);
+    const { buffer: processedBuffer, fileName: processedFileName } =
+      await convertToJPEG(fileBuffer, fileName);
 
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8); // Add random string to prevent collisions
