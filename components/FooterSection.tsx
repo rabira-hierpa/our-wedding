@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Heart, Sparkles } from "lucide-react";
 import AnimatedSection from "./AnimatedSection";
 
 /**
@@ -77,7 +77,7 @@ export default function FooterSection() {
                   delay: i * 0.2,
                 }}
               >
-                <Sparkles className="w-6 h-6 text-theme-primary" />
+                <Heart className="w-6 h-6 text-theme-primary" />
               </motion.div>
             ))}
           </motion.div>

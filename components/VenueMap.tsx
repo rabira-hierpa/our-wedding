@@ -61,8 +61,8 @@ export default function VenueMap() {
                   <h3 className="font-serif text-2xl font-bold text-theme-text-primary mb-2">
                     Good News Church
                   </h3>
-                  <p className="text-theme-text-secondary font-serif italic">
-                    Coordinates: 8.99824°N, 38.80927°E
+                  <p className="text-theme-text-secondary font-serif ">
+                    Gerji Inside Korea Hospital Compound
                   </p>
                 </div>
               </div>

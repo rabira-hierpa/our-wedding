@@ -79,7 +79,7 @@ export default function PoweredByFooter() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="text-xs text-theme-dark-text/70 font-light"
+            className="text-xs text-ivory-50 font-light"
           >
             © {new Date().getFullYear()} • A celebration of love
           </motion.p>

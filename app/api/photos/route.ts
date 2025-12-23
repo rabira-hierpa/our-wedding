@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Enable ISR caching with 30 second revalidation
+export const revalidate = 30;
 
 export async function GET() {
   try {
