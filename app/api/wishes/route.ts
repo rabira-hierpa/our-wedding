@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Invalidate wishes cache
-    await invalidateCache(\"wishes:*\");
+    await invalidateCache("wishes:*");
 
     return NextResponse.json(wish, { status: 201 });
   } catch (error) {

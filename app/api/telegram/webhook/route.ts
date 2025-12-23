@@ -237,10 +237,15 @@ export async function POST(request: NextRequest) {
     if (message.text) {
       // Check if user is waiting to send a wish
       if (usersWaitingForWish.has(user.id)) {
-        await handleWishMessage(user, message.text, message.chat.id, message.message_id);
+        await handleWishMessage(
+          user,
+          message.text,
+          message.chat.id,
+          message.message_id
+        );
         return NextResponse.json({ ok: true });
       }
-      
+
       await sendMessage(
         message.chat.id,
         "📸 Send me photos to add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos",
@@ -551,7 +556,10 @@ async function handleCallbackQuery(callbackQuery: any) {
       // Delete from group chat if message ID exists
       if (photo.groupMessageId && WEDDING_GROUP_CHAT_ID) {
         try {
-          await deleteMessage(WEDDING_GROUP_CHAT_ID, parseInt(photo.groupMessageId));
+          await deleteMessage(
+            WEDDING_GROUP_CHAT_ID,
+            parseInt(photo.groupMessageId)
+          );
         } catch (error) {
           console.error("Error deleting photo from group:", error);
           // Continue even if group deletion fails
@@ -726,7 +734,7 @@ async function handleWishMessage(
   try {
     // Remove user from waiting mode
     usersWaitingForWish.delete(user.id);
-    
+
     // Save the wish
     await saveWish(user, message, chatId, messageId);
   } catch (error) {
@@ -788,11 +796,7 @@ async function saveWish(
 /**
  * Handles /delete_wish command
  */
-async function handleDeleteWish(
-  user: any,
-  chatId: number,
-  messageId: number
-) {
+async function handleDeleteWish(user: any, chatId: number, messageId: number) {
   try {
     const guest = await prisma.guest.findFirst({
       where: { telegramUserId: BigInt(user.id) },
@@ -804,11 +808,7 @@ async function handleDeleteWish(
     });
 
     if (!guest || guest.wishes.length === 0) {
-      await sendMessage(
-        chatId,
-        "You haven't sent any wishes yet.",
-        messageId
-      );
+      await sendMessage(chatId, "You haven't sent any wishes yet.", messageId);
       return;
     }
 
@@ -822,16 +822,14 @@ async function handleDeleteWish(
     for (let index = 0; index < guest.wishes.length; index++) {
       const wish = guest.wishes[index];
       const wishNumber = index + 1;
-      const displayText = `💝 *Wish ${wishNumber}*\n\n"${wish.message}"\n\n_Sent on ${new Date(
-        wish.createdAt
-      ).toLocaleDateString()}_`;
+      const displayText = `💝 *Wish ${wishNumber}*\n\n"${
+        wish.message
+      }"\n\n_Sent on ${new Date(wish.createdAt).toLocaleDateString()}_`;
 
       // Send wish with delete button
-      await sendMessageWithButtons(
-        chatId,
-        displayText,
-        [[{ text: "🗑️ Delete", callback_data: `delete_wish_${wish.id}` }]]
-      );
+      await sendMessageWithButtons(chatId, displayText, [
+        [{ text: "🗑️ Delete", callback_data: `delete_wish_${wish.id}` }],
+      ]);
     }
   } catch (error) {
     console.error("Error in handleDeleteWish:", error);
@@ -1070,12 +1068,14 @@ async function processMediaGroupPhotos(
               highestResPhoto.file_id,
               groupCaption
             );
-            
+
             // Save group message ID to photo record
             if (groupMessageResult?.message_id) {
               await prisma.photo.update({
                 where: { id: result.photoId },
-                data: { groupMessageId: groupMessageResult.message_id.toString() },
+                data: {
+                  groupMessageId: groupMessageResult.message_id.toString(),
+                },
               });
             }
           }
@@ -1221,26 +1221,16 @@ async function handlePhotoUpload(
               highestResPhoto.file_id,
               groupCaption
             );
-            
+
             // Save group message ID to photo record
             if (groupMessageResult?.message_id) {
               await prisma.photo.update({
                 where: { id: result.photoId },
-                data: { groupMessageId: groupMessageResult.message_id.toString() },
+                data: {
+                  groupMessageId: groupMessageResult.message_id.toString(),
+                },
               });
             }
-          }
-        } catch (error) {
-          console.error("Error sending photo to group:", error);
-          // Don't fail the upload if group send fails
-        }
-      }
-    } else {
-            await sendPhotoToChat(
-              WEDDING_GROUP_CHAT_ID,
-              highestResPhoto.file_id,
-              groupCaption
-            );
           }
         } catch (error) {
           console.error("Error sending photo to group:", error);

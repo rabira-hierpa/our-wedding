@@ -384,7 +384,7 @@ export async function sendPhotoToChat(
   chatId: number,
   photoFileIdOrUrl: string,
   caption?: string
-): Promise<boolean> {
+): Promise<{ ok: boolean; message_id?: number }> {
   try {
     const response = await fetch(`${TELEGRAM_API_BASE}/sendPhoto`, {
       method: "POST",
@@ -397,9 +397,9 @@ export async function sendPhotoToChat(
     });
 
     const data = await response.json();
-    return data.ok;
+    return { ok: data.ok, message_id: data.result?.message_id };
   } catch (error) {
     console.error("Error sending photo to chat:", error);
-    return false;
+    return { ok: false };
   }
 }
