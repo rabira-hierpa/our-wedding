@@ -156,6 +156,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Handle /upload_photos command
+    if (message.text?.startsWith("/upload_photos")) {
+      await handleUploadPhotosCommand(message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
     // Reject videos
     if (message.video) {
       await sendMessage(
@@ -169,8 +175,13 @@ export async function POST(request: NextRequest) {
     // Handle photo sent as document (file)
     if (message.document) {
       const mimeType = message.document.mime_type || "";
-      // Check if document is an image
-      if (mimeType.startsWith("image/")) {
+      const fileName = message.document.file_name || "";
+      
+      // Check if document is an image (including HEIC/HEIF)
+      const isImage = mimeType.startsWith("image/") || 
+                      /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(fileName);
+      
+      if (isImage) {
         await handleDocumentPhoto(
           user,
           message.document,
@@ -182,7 +193,7 @@ export async function POST(request: NextRequest) {
       } else {
         await sendMessage(
           message.chat.id,
-          "❌ Sorry, I only accept image files. Please send photos.",
+          "❌ Sorry, I only accept image files. Please send photos.\n\nTip: Use /upload_photos for instructions.",
           message.message_id
         );
         return NextResponse.json({ ok: true });
@@ -349,7 +360,7 @@ async function handleNewMemberWelcome(newMember: any, groupChatId: number) {
  * Handles /help command
  */
 async function handleHelp(chatId: number, messageId: number) {
-  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/myphotos - View your uploaded photos with delete buttons\n/wish <message> - Leave a digital wish for the newlyweds\n/joingroup - Get invitation to join the wedding photo group\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
+  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/upload_photos - Instructions on how to upload photos\n/myphotos - View your uploaded photos with delete buttons\n/wish <message> - Leave a digital wish for the newlyweds\n/joingroup - Get invitation to join the wedding photo group\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
 
   await sendMessage(chatId, helpText, messageId);
 }
@@ -668,6 +679,21 @@ async function handleWishCommand(
 }
 
 /**
+ * Handles /upload_photos command
+ */
+async function handleUploadPhotosCommand(
+  chatId: number,
+  messageId: number
+) {
+  const galleryUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+
+  const instructions = `📸 *How to Upload Photos*\n\n*Preferred Method: Send as Photo (Image)*\n1. Tap the 📎 attachment icon\n2. Select 📷 Photo or Video\n3. Choose your photo(s)\n4. Select "Send as Photo" (not "Send as File")\n5. Add an optional caption\n6. Press send!\n\n*Alternative: Send as File*\n• Works for HEIC, HEIF (iPhone photos)\n• Will be converted automatically\n• Tap 📎 → 📁 File → Select photo\n\n*Tips:*\n✨ You can send multiple photos at once\n✨ Add captions to describe your photos\n✨ Compressed photos are automatically enhanced\n\n*View Gallery:*\n🌐 ${galleryUrl}#gallery\n\n❌ *Not Accepted:* Videos, GIFs, other files`;
+
+  await sendMessage(chatId, instructions, messageId);
+}
+
+/**
  * Handles /joingroup command
  */
 async function handleJoinGroupCommand(
@@ -890,12 +916,13 @@ async function processMediaGroupPhotos(
     }
 
     // Send summary message
+    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     let summaryMessage = "";
     if (successCount > 0) {
-      summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n`;
+      summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery\n`;
     }
     if (failCount > 0) {
-      summaryMessage += `❌ ${failCount} photo(s) failed to upload.`;
+      summaryMessage += `\n❌ ${failCount} photo(s) failed to upload.`;
     }
 
     await sendMessage(chatId, summaryMessage);
@@ -1001,9 +1028,10 @@ async function handlePhotoUpload(
     const result = await uploadSinglePhoto(user, guest, photos, caption);
 
     if (result.success && result.uploadResult) {
+      const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
       await sendMessage(
         chatId,
-        "✅ Your photo has been added to the wedding gallery!",
+        `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
         messageId
       );
 
@@ -1109,9 +1137,10 @@ async function handleDocumentPhoto(
       },
     });
 
+    const galleryUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     await sendMessage(
       chatId,
-      "✅ Your photo has been added to the wedding gallery!",
+      `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
       messageId
     );
 
