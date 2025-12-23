@@ -29,7 +29,7 @@ export default function Header() {
       transition={{ duration: 0.6 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-white/90 backdrop-blur-lg shadow-lg border-b border-gold-200/20"
+          ? "bg-theme-surface/90 backdrop-blur-lg shadow-lg border-b border-theme-border-accent/20"
           : "bg-transparent"
       }`}
     >
@@ -45,8 +45,8 @@ export default function Header() {
             <h1
               className={`font-script text-3xl md:text-4xl font-bold transition-colors duration-300 ${
                 isScrolled
-                  ? "bg-gradient-to-r from-gold-600 to-rose-600 bg-clip-text text-transparent"
-                  : "text-white drop-shadow-lg"
+                  ? "bg-gradient-to-r from-theme-primary to-theme-accent bg-clip-text text-transparent"
+                  : "text-theme-text-inverse drop-shadow-lg"
               }`}
             >
               Rab & Lee
@@ -77,8 +77,8 @@ export default function Header() {
               whileTap={{ scale: 0.9 }}
               className={`p-2 rounded-full transition-colors ${
                 isScrolled
-                  ? "text-gold-600 hover:bg-gold-50"
-                  : "text-white hover:bg-white/10"
+                  ? "text-theme-primary hover:bg-theme-surface-tertiary"
+                  : "text-theme-text-inverse hover:bg-white/10"
               }`}
             >
               <Camera className="w-5 h-5" />
@@ -89,8 +89,8 @@ export default function Header() {
               whileTap={{ scale: 0.9 }}
               className={`p-2 rounded-full transition-colors ${
                 isScrolled
-                  ? "text-gold-600 hover:bg-gold-50"
-                  : "text-white hover:bg-white/10"
+                  ? "text-theme-primary hover:bg-theme-surface-tertiary"
+                  : "text-theme-text-inverse hover:bg-white/10"
               }`}
             >
               <MapPin className="w-5 h-5" />
@@ -120,8 +120,8 @@ function NavLink({
       whileTap={{ scale: 0.95 }}
       className={`flex items-center space-x-2 font-medium transition-colors duration-300 ${
         isScrolled
-          ? "text-gray-700 hover:text-gold-600"
-          : "text-white hover:text-gold-200"
+          ? "text-theme-text-primary hover:text-theme-primary"
+          : "text-theme-text-inverse hover:text-theme-primary-light"
       }`}
     >
       {icon}
