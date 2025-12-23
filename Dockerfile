@@ -47,7 +47,6 @@ COPY --from=builder /app/prisma ./prisma
 RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 
 # Copy entrypoint script
-# Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -61,7 +60,8 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV STORAGE_DIR=/app/public/uploads
+# Default to /uploads for persistent storage (override with STORAGE_DIR env var)
+ENV STORAGE_DIR=/uploads
 
 # Healthcheck to ensure server is responding
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
