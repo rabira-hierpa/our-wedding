@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCached, invalidateCache } from "@/lib/redis";
 import { NextRequest, NextResponse } from "next/server";
 
 // Enable ISR caching with 30 second revalidation
@@ -7,20 +8,26 @@ export const revalidate = 30;
 // GET all wishes
 export async function GET() {
   try {
-    const wishes = await prisma.wish.findMany({
-      include: {
-        guest: {
-          select: {
-            firstName: true,
-            lastName: true,
-            telegramUsername: true,
+    const wishes = await getCached(
+      "wishes:all",
+      async () => {
+        return await prisma.wish.findMany({
+          include: {
+            guest: {
+              select: {
+                firstName: true,
+                lastName: true,
+                telegramUsername: true,
+              },
+            },
           },
-        },
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      30 // 30 second TTL
+    );
 
     return NextResponse.json(wishes);
   } catch (error) {
@@ -71,6 +78,9 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Invalidate wishes cache
+    await invalidateCache(\"wishes:*\");
 
     return NextResponse.json(wish, { status: 201 });
   } catch (error) {
