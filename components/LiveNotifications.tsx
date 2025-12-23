@@ -62,6 +62,9 @@ export default function LiveNotifications() {
                 }`.trim(),
                 timestamp: new Date(latestPhoto.uploadedAt),
               });
+
+              // Trigger gallery refresh
+              window.dispatchEvent(new Event("galleryRefresh"));
             }
           }
 
@@ -78,6 +81,9 @@ export default function LiveNotifications() {
                 }`.trim(),
                 timestamp: new Date(latestWish.createdAt),
               });
+
+              // Trigger gallery refresh
+              window.dispatchEvent(new Event("galleryRefresh"));
             }
           }
 
@@ -89,8 +95,8 @@ export default function LiveNotifications() {
       }
     };
 
-    // Check every 5 seconds
-    const interval = setInterval(checkForUpdates, 5000);
+    // Check every 10 seconds (reduced frequency)
+    const interval = setInterval(checkForUpdates, 10000);
     checkForUpdates(); // Initial check
 
     return () => clearInterval(interval);

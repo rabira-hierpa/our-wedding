@@ -69,10 +69,17 @@ export default function PhotoGallery() {
       }
     };
 
+    // Listen for custom gallery refresh events from LiveNotifications
+    const handleGalleryRefresh = () => {
+      fetchGalleryData();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("galleryRefresh", handleGalleryRefresh);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("galleryRefresh", handleGalleryRefresh);
     };
   }, []);
 
