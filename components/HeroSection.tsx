@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, SkipForward } from "lucide-react";
+import { ChevronDown, SkipForward, Camera, MapPin, Heart } from "lucide-react";
 import Countdown from "./Countdown";
 import Image from "next/image";
+import Link from "next/link";
 
 /**
  * Hero Section - Dynamic background with uploaded photos and biblical verses
@@ -27,6 +28,14 @@ export default function HeroSection() {
     {
       text: "Two are better than one, because they have a good return for their labor.",
       reference: "Ecclesiastes 4:9",
+    },
+    {
+      text: "I have loved you with an everlasting love; I have drawn you with unfailing kindness.",
+      reference: "Jeremiah 31:3",
+    },
+    {
+      text: "Place me like a seal over your heart, like a seal on your arm; for love is as strong as death, its jealousy unyielding as the grave.",
+      reference: "Song of Solomon 8:6",
     },
   ];
 
@@ -72,6 +81,16 @@ export default function HeroSection() {
     // Smooth scroll to gallery section
     setTimeout(() => {
       window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+    }, 100);
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    setShowCountdown(false);
+    setTimeout(() => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }, 100);
   };
 
@@ -156,10 +175,11 @@ export default function HeroSection() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Countdown Section */}
-          <AnimatePresence>
-            {showCountdown && (
+          {/* Countdown Section or Navigation Buttons */}
+          <AnimatePresence mode="wait">
+            {showCountdown ? (
               <motion.div
+                key="countdown"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20, height: 0 }}
@@ -184,6 +204,52 @@ export default function HeroSection() {
                   <SkipForward className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   <span className="font-script text-lg">Skip to Gallery</span>
                 </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="navigation"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+                className="mb-8"
+              >
+                {/* Navigation Buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                  {/* Gallery Button */}
+                  <motion.button
+                    onClick={() => scrollToSection("gallery")}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md border-2 border-gold-400/50 rounded-full text-white font-semibold hover:bg-white/20 hover:border-gold-400 transition-all duration-300 group min-w-[200px]"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Camera className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-script text-lg">Gallery</span>
+                  </motion.button>
+
+                  {/* Our Story Button */}
+                  <Link href="/our-story" className="w-full sm:w-auto">
+                    <motion.div
+                      className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-theme-accent/20 backdrop-blur-md border-2 border-theme-accent/60 rounded-full text-white font-semibold hover:bg-theme-accent/30 hover:border-theme-accent transition-all duration-300 group min-w-[200px] w-full"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Heart className="w-5 h-5 group-hover:scale-110 transition-transform fill-current" />
+                      <span className="font-script text-lg">Our Story</span>
+                    </motion.div>
+                  </Link>
+
+                  {/* Venue Button */}
+                  <motion.button
+                    onClick={() => scrollToSection("venue")}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md border-2 border-gold-400/50 rounded-full text-white font-semibold hover:bg-white/20 hover:border-gold-400 transition-all duration-300 group min-w-[200px]"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MapPin className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-script text-lg">Venue</span>
+                  </motion.button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
