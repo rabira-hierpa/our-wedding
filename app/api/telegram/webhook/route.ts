@@ -33,11 +33,13 @@ const mediaGroups = new Map<
   { photos: any[]; timeout: NodeJS.Timeout }
 >();
 
+// Track users waiting to send wishes (state management)
+const usersWaitingForWish = new Set<number>();
+
 export async function POST(request: NextRequest) {
   try {
     // Verify the request comes from Telegram
     const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
-    console.log("Received secret header:", secret);
     console.log("Expected secret:", process.env.TELEGRAM_WEBHOOK_SECRET);
     if (!secret || !verifyTelegramRequest(secret)) {
       console.error("Invalid or missing secret token");
@@ -45,21 +47,20 @@ export async function POST(request: NextRequest) {
     }
 
     const update: TelegramUpdate = await request.json();
-    console.log("Received update:", JSON.stringify(update, null, 2));
 
-    // Log group chat IDs for debugging (helps find the correct WEDDING_GROUP_CHAT_ID)
-    if (
-      update.message?.chat?.type === "group" ||
-      update.message?.chat?.type === "supergroup"
-    ) {
-      console.log("📊 GROUP CHAT DETECTED:");
-      console.log(`  Title: ${update.message.chat.title}`);
-      console.log(`  Chat ID: ${update.message.chat.id}`);
-      console.log(`  Type: ${update.message.chat.type}`);
-      console.log(
-        `  👉 Add this to your .env: WEDDING_GROUP_CHAT_ID=${update.message.chat.id}`
-      );
-    }
+    // // Log group chat IDs for debugging (helps find the correct WEDDING_GROUP_CHAT_ID)
+    // if (
+    //   update.message?.chat?.type === "group" ||
+    //   update.message?.chat?.type === "supergroup"
+    // ) {
+    //   console.log("📊 GROUP CHAT DETECTED:");
+    //   console.log(`  Title: ${update.message.chat.title}`);
+    //   console.log(`  Chat ID: ${update.message.chat.id}`);
+    //   console.log(`  Type: ${update.message.chat.type}`);
+    //   console.log(
+    //     `  👉 Add this to your .env: WEDDING_GROUP_CHAT_ID=${update.message.chat.id}`
+    //   );
+    // }
 
     // Handle callback queries (button presses)
     if (update.callback_query) {
@@ -150,9 +151,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Handle /delete_wish command
+    if (message.text?.startsWith("/delete_wish")) {
+      await handleDeleteWish(user, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
     // Handle /joingroup command
     if (message.text?.startsWith("/joingroup")) {
       await handleJoinGroupCommand(user, message.chat.id, message.message_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle /upload_photos command
+    if (message.text?.startsWith("/upload_photos")) {
+      await handleUploadPhotosCommand(message.chat.id, message.message_id);
       return NextResponse.json({ ok: true });
     }
 
@@ -169,8 +182,14 @@ export async function POST(request: NextRequest) {
     // Handle photo sent as document (file)
     if (message.document) {
       const mimeType = message.document.mime_type || "";
-      // Check if document is an image
-      if (mimeType.startsWith("image/")) {
+      const fileName = message.document.file_name || "";
+
+      // Check if document is an image (including HEIC/HEIF)
+      const isImage =
+        mimeType.startsWith("image/") ||
+        /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(fileName);
+
+      if (isImage) {
         await handleDocumentPhoto(
           user,
           message.document,
@@ -182,7 +201,7 @@ export async function POST(request: NextRequest) {
       } else {
         await sendMessage(
           message.chat.id,
-          "❌ Sorry, I only accept image files. Please send photos.",
+          "❌ Sorry, I only accept image files. Please send photos.\n\nTip: Use /upload_photos for instructions.",
           message.message_id
         );
         return NextResponse.json({ ok: true });
@@ -216,6 +235,17 @@ export async function POST(request: NextRequest) {
 
     // Handle other text messages
     if (message.text) {
+      // Check if user is waiting to send a wish
+      if (usersWaitingForWish.has(user.id)) {
+        await handleWishMessage(
+          user,
+          message.text,
+          message.chat.id,
+          message.message_id
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       await sendMessage(
         message.chat.id,
         "📸 Send me photos to add them to the wedding gallery!\n\nCommands:\n/help - Show help\n/myphotos - View and manage your photos",
@@ -263,7 +293,7 @@ async function handleRegistration(
           [
             {
               text: "📍 Venue Location",
-              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+              url: "https://maps.app.goo.gl/AvFG44evk6f4GQx36",
             },
           ],
         ],
@@ -295,7 +325,7 @@ async function handleRegistration(
           [
             {
               text: "📍 Venue Location",
-              url: "https://www.google.com/maps/place/Good+News+Church/@8.99819,38.8091865,17z",
+              url: "https://maps.app.goo.gl/AvFG44evk6f4GQx36",
             },
           ],
         ],
@@ -349,7 +379,7 @@ async function handleNewMemberWelcome(newMember: any, groupChatId: number) {
  * Handles /help command
  */
 async function handleHelp(chatId: number, messageId: number) {
-  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/myphotos - View your uploaded photos with delete buttons\n/wish <message> - Leave a digital wish for the newlyweds\n/joingroup - Get invitation to join the wedding photo group\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
+  const helpText = `📸 *Wedding Photo Gallery Bot*\n\n*How to use:*\n• Send photos (as images or files) to add them to the gallery\n• Send multiple photos at once\n• Add captions to your photos\n\n*Commands:*\n/start - Register or get started\n/help - Show this help message\n/upload_photos - Instructions on how to upload photos\n/myphotos - View your uploaded photos with delete buttons\n/wish - Send a heartfelt wish for the newlyweds\n/delete_wish - View and delete your wishes\n/joingroup - Get invitation to join the wedding photo group\n\n*Note:* Only photos (images) are accepted. Videos and other file types will be rejected.`;
 
   await sendMessage(chatId, helpText, messageId);
 }
@@ -495,8 +525,8 @@ async function handleCallbackQuery(callbackQuery: any) {
       return;
     }
 
-    // Handle delete button press
-    if (data?.startsWith("delete_")) {
+    // Handle delete button press for photos
+    if (data?.startsWith("delete_") && !data.startsWith("delete_wish_")) {
       const photoId = data.replace("delete_", "");
 
       // Find the photo and verify ownership
@@ -523,12 +553,25 @@ async function handleCallbackQuery(callbackQuery: any) {
       // Delete from storage
       await deletePhotoFromStorage(photo.storagePath);
 
+      // Delete from group chat if message ID exists
+      if (photo.groupMessageId && WEDDING_GROUP_CHAT_ID) {
+        try {
+          await deleteMessage(
+            WEDDING_GROUP_CHAT_ID,
+            parseInt(photo.groupMessageId)
+          );
+        } catch (error) {
+          console.error("Error deleting photo from group:", error);
+          // Continue even if group deletion fails
+        }
+      }
+
       // Delete from database
       await prisma.photo.delete({
         where: { id: photoId },
       });
 
-      // Delete the message with the photo
+      // Delete the message with the photo from private chat
       await deleteMessage(chatId, messageId);
 
       // Answer the callback query
@@ -539,6 +582,49 @@ async function handleCallbackQuery(callbackQuery: any) {
 
       // Send confirmation message
       await sendMessage(chatId, "✅ Photo has been deleted from the gallery.");
+    }
+
+    // Handle delete wish button press
+    if (data?.startsWith("delete_wish_")) {
+      const wishId = data.replace("delete_wish_", "");
+
+      // Find the wish and verify ownership
+      const wish = await prisma.wish.findUnique({
+        where: { id: wishId },
+        include: { guest: true },
+      });
+
+      if (!wish) {
+        await answerCallbackQuery(callbackQuery.id, "Wish not found", true);
+        return;
+      }
+
+      // Verify the user owns this wish
+      if (wish.guest.telegramUserId !== BigInt(user.id)) {
+        await answerCallbackQuery(
+          callbackQuery.id,
+          "You can only delete your own wishes",
+          true
+        );
+        return;
+      }
+
+      // Delete from database
+      await prisma.wish.delete({
+        where: { id: wishId },
+      });
+
+      // Delete the message with the wish
+      await deleteMessage(chatId, messageId);
+
+      // Answer the callback query
+      await answerCallbackQuery(
+        callbackQuery.id,
+        "Wish deleted successfully ✅"
+      );
+
+      // Send confirmation message
+      await sendMessage(chatId, "✅ Wish has been deleted from the gallery.");
     }
 
     // Handle join group confirmation
@@ -611,60 +697,160 @@ async function handleWishCommand(
   messageId: number
 ) {
   try {
-    // Extract wish message
-    const wish = messageText.replace("/wish", "").trim();
+    // Check if wish text is provided in the same message
+    const wishText = messageText.replace("/wish", "").trim();
 
-    if (!wish) {
+    if (wishText) {
+      // Wish provided in same message - process it
+      await saveWish(user, wishText, chatId, messageId);
+    } else {
+      // No wish text - prompt user and set waiting mode
+      usersWaitingForWish.add(user.id);
       await sendMessage(
         chatId,
-        "💌 Please include your wish!\n\nExample: /wish Wishing you both a lifetime of love and happiness!",
+        "💝 Please send your heartfelt wish for the newlyweds!\n\n✨ Just type your message in the next message.",
         messageId
       );
-      return;
     }
-
-    // Ensure guest is registered
-    const guest = await prisma.guest.findFirst({
-      where: { telegramUserId: BigInt(user.id) },
-    });
-
-    if (!guest) {
-      // Auto-register if not already
-      await prisma.guest.create({
-        data: {
-          telegramUserId: BigInt(user.id),
-          telegramUsername: user.username,
-          firstName: user.first_name,
-          lastName: user.last_name,
-        },
-      });
-    }
-
-    // Save wish to database
-    await prisma.wish.create({
-      data: {
-        guestId:
-          guest?.id ||
-          (await prisma.guest.findFirst({
-            where: { telegramUserId: BigInt(user.id) },
-          }))!.id,
-        message: wish,
-      },
-    });
-
-    await sendMessage(
-      chatId,
-      `💌 Thank you for your beautiful wish!\n\n"${wish}"\n\n✨ Your message will be displayed on the wedding gallery website.`,
-      messageId
-    );
   } catch (error) {
     console.error("Error in handleWishCommand:", error);
+    await sendMessage(
+      chatId,
+      "Sorry, there was an error. Please try again.",
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles wish message from user in waiting mode
+ */
+async function handleWishMessage(
+  user: any,
+  message: string,
+  chatId: number,
+  messageId: number
+) {
+  try {
+    // Remove user from waiting mode
+    usersWaitingForWish.delete(user.id);
+
+    // Save the wish
+    await saveWish(user, message, chatId, messageId);
+  } catch (error) {
+    console.error("Error in handleWishMessage:", error);
+    usersWaitingForWish.delete(user.id);
     await sendMessage(
       chatId,
       "Sorry, there was an error saving your wish. Please try again.",
       messageId
     );
   }
+}
+
+/**
+ * Saves a wish to the database
+ */
+async function saveWish(
+  user: any,
+  wish: string,
+  chatId: number,
+  messageId: number
+) {
+  // Ensure guest is registered
+  let guest = await prisma.guest.findFirst({
+    where: {
+      telegramUserId: BigInt(user.id),
+    },
+  });
+
+  if (!guest) {
+    // Create new guest if not found
+    guest = await prisma.guest.create({
+      data: {
+        telegramUserId: BigInt(user.id),
+        telegramUsername: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      },
+    });
+  }
+
+  // Save wish to database
+  await prisma.wish.create({
+    data: {
+      guestId: guest.id,
+      message: wish,
+    },
+  });
+
+  const galleryUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+  await sendMessage(
+    chatId,
+    `💌 Thank you for your beautiful wish!\n\n"${wish}"\n\n✨ Your message has been added to the gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
+    messageId
+  );
+}
+
+/**
+ * Handles /delete_wish command
+ */
+async function handleDeleteWish(user: any, chatId: number, messageId: number) {
+  try {
+    const guest = await prisma.guest.findFirst({
+      where: { telegramUserId: BigInt(user.id) },
+      include: {
+        wishes: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!guest || guest.wishes.length === 0) {
+      await sendMessage(chatId, "You haven't sent any wishes yet.", messageId);
+      return;
+    }
+
+    // Send each wish with a delete button
+    await sendMessage(
+      chatId,
+      `You have sent ${guest.wishes.length} wish(es). Tap the 🗑️ Delete button below any wish to remove it.`,
+      messageId
+    );
+
+    for (let index = 0; index < guest.wishes.length; index++) {
+      const wish = guest.wishes[index];
+      const wishNumber = index + 1;
+      const displayText = `💝 *Wish ${wishNumber}*\n\n"${
+        wish.message
+      }"\n\n_Sent on ${new Date(wish.createdAt).toLocaleDateString()}_`;
+
+      // Send wish with delete button
+      await sendMessageWithButtons(chatId, displayText, [
+        [{ text: "🗑️ Delete", callback_data: `delete_wish_${wish.id}` }],
+      ]);
+    }
+  } catch (error) {
+    console.error("Error in handleDeleteWish:", error);
+    await sendMessage(
+      chatId,
+      "Sorry, there was an error retrieving your wishes.",
+      messageId
+    );
+  }
+}
+
+/**
+ * Handles /upload_photos command
+ */
+async function handleUploadPhotosCommand(chatId: number, messageId: number) {
+  const galleryUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
+
+  const instructions = `📸 *How to Upload Photos*\n\n*Preferred Method: Send as Photo (Image)*\n1. Tap the 📎 attachment icon\n2. Select 📷 Photo or Video\n3. Choose your photo(s)\n4. Select "Send as Photo" (not "Send as File")\n5. Add an optional caption\n6. Press send!\n\n*Alternative: Send as File*\n• Works for HEIC, HEIF (iPhone photos)\n• Will be converted automatically\n• Tap 📎 → 📁 File → Select photo\n\n*Tips:*\n✨ You can send multiple photos at once\n✨ Add captions to describe your photos\n✨ Compressed photos are automatically enhanced\n\n*View Gallery:*\n🌐 ${galleryUrl}#gallery\n\n❌ *Not Accepted:* Videos, GIFs, other files`;
+
+  await sendMessage(chatId, instructions, messageId);
 }
 
 /**
@@ -868,20 +1054,30 @@ async function processMediaGroupPhotos(
         photoMsg.caption
       );
 
-      if (result.success) {
+      if (result.success && result.photoId) {
         successCount++;
-        // Send photo to wedding group chat if user is in the group
-        if (WEDDING_GROUP_CHAT_ID && guest?.inWeddingGroup) {
+        // Send photo to wedding group chat if configured
+        if (WEDDING_GROUP_CHAT_ID) {
           const groupCaption = `📸 Photo from ${user.first_name}${
             photoMsg.caption ? `\n\n${photoMsg.caption}` : ""
           }`;
           const highestResPhoto = getHighestResolutionPhoto(photoMsg.photos);
           if (highestResPhoto) {
-            await sendPhotoToChat(
+            const groupMessageResult = await sendPhotoToChat(
               WEDDING_GROUP_CHAT_ID,
               highestResPhoto.file_id,
               groupCaption
             );
+
+            // Save group message ID to photo record
+            if (groupMessageResult?.message_id) {
+              await prisma.photo.update({
+                where: { id: result.photoId },
+                data: {
+                  groupMessageId: groupMessageResult.message_id.toString(),
+                },
+              });
+            }
           }
         }
       } else {
@@ -890,12 +1086,14 @@ async function processMediaGroupPhotos(
     }
 
     // Send summary message
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     let summaryMessage = "";
     if (successCount > 0) {
-      summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n`;
+      summaryMessage += `✅ ${successCount} photo(s) added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery\n`;
     }
     if (failCount > 0) {
-      summaryMessage += `❌ ${failCount} photo(s) failed to upload.`;
+      summaryMessage += `\n❌ ${failCount} photo(s) failed to upload.`;
     }
 
     await sendMessage(chatId, summaryMessage);
@@ -916,7 +1114,7 @@ async function uploadSinglePhoto(
   guest: any,
   photos: any[],
   caption: string | undefined
-): Promise<{ success: boolean; uploadResult?: any }> {
+): Promise<{ success: boolean; uploadResult?: any; photoId?: string }> {
   try {
     const highestResPhoto = getHighestResolutionPhoto(photos);
     if (!highestResPhoto) {
@@ -941,7 +1139,7 @@ async function uploadSinglePhoto(
       return { success: false };
     }
 
-    await prisma.photo.create({
+    const photo = await prisma.photo.create({
       data: {
         guestId: guest.id,
         storagePath: uploadResult.path,
@@ -951,7 +1149,7 @@ async function uploadSinglePhoto(
       },
     });
 
-    return { success: true, uploadResult };
+    return { success: true, uploadResult, photoId: photo.id };
   } catch (error) {
     console.error("Error in uploadSinglePhoto:", error);
     return { success: false };
@@ -1000,10 +1198,12 @@ async function handlePhotoUpload(
 
     const result = await uploadSinglePhoto(user, guest, photos, caption);
 
-    if (result.success && result.uploadResult) {
+    if (result.success && result.uploadResult && result.photoId) {
+      const galleryUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
       await sendMessage(
         chatId,
-        "✅ Your photo has been added to the wedding gallery!",
+        `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
         messageId
       );
 
@@ -1016,11 +1216,21 @@ async function handlePhotoUpload(
           // Use telegram file_id for faster forwarding
           const highestResPhoto = getHighestResolutionPhoto(photos);
           if (highestResPhoto) {
-            await sendPhotoToChat(
+            const groupMessageResult = await sendPhotoToChat(
               WEDDING_GROUP_CHAT_ID,
               highestResPhoto.file_id,
               groupCaption
             );
+
+            // Save group message ID to photo record
+            if (groupMessageResult?.message_id) {
+              await prisma.photo.update({
+                where: { id: result.photoId },
+                data: {
+                  groupMessageId: groupMessageResult.message_id.toString(),
+                },
+              });
+            }
           }
         } catch (error) {
           console.error("Error sending photo to group:", error);
@@ -1109,9 +1319,11 @@ async function handleDocumentPhoto(
       },
     });
 
+    const galleryUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "https://your-wedding-site.com";
     await sendMessage(
       chatId,
-      "✅ Your photo has been added to the wedding gallery!",
+      `✅ Your photo has been added to the wedding gallery!\n\n🌐 View gallery: ${galleryUrl}#gallery`,
       messageId
     );
 

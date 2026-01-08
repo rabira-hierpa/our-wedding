@@ -4,6 +4,7 @@ import TelegramGuide from "@/components/TelegramGuide";
 import HighlightMoments from "@/components/HighlightMoments";
 import VenueMap from "@/components/VenueMap";
 import FooterSection from "@/components/FooterSection";
+import PoweredByFooter from "@/components/PoweredByFooter";
 import LiveNotifications from "@/components/LiveNotifications";
 import Header from "@/components/Header";
 
@@ -33,6 +34,9 @@ export default function Home() {
 
       {/* Footer Section */}
       <FooterSection />
+
+      {/* Powered By Footer */}
+      <PoweredByFooter />
     </main>
   );
 }

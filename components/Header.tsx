@@ -1,11 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Camera, MapPin } from "lucide-react";
+import { Camera, MapPin, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,32 +33,40 @@ export default function Header() {
       transition={{ duration: 0.6 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-white/90 backdrop-blur-lg shadow-lg border-b border-gold-200/20"
+          ? "bg-theme-surface/90 backdrop-blur-lg shadow-lg border-b border-theme-border-accent/20"
           : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo / Newlyweds Name */}
-          <motion.button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center space-x-2 group cursor-pointer"
-          >
-            <h1
-              className={`font-script text-3xl md:text-4xl font-bold transition-colors duration-300 ${
-                isScrolled
-                  ? "bg-gradient-to-r from-gold-600 to-rose-600 bg-clip-text text-transparent"
-                  : "text-white drop-shadow-lg"
-              }`}
+          <Link href="/">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center space-x-2 group cursor-pointer"
             >
-              Rab & Lee
-            </h1>
-          </motion.button>
+              <h1
+                className={`font-script text-3xl md:text-4xl font-bold transition-colors duration-300 ${
+                  isScrolled
+                    ? "bg-gradient-to-r from-theme-primary to-theme-accent bg-clip-text text-transparent"
+                    : "text-theme-text-inverse drop-shadow-lg"
+                }`}
+              >
+                Rab & Lee
+              </h1>
+            </motion.div>
+          </Link>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center space-x-8">
+            <PageNavLink
+              icon={<Heart className="w-4 h-4" />}
+              label="Our Story"
+              href="/our-story"
+              isScrolled={isScrolled}
+              isActive={pathname === "/our-story"}
+            />
             <NavLink
               icon={<Camera className="w-4 h-4" />}
               label="Gallery"
@@ -71,30 +83,47 @@ export default function Header() {
 
           {/* Mobile Menu */}
           <div className="md:hidden flex items-center space-x-4">
-            <motion.button
-              onClick={() => scrollToSection("gallery")}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className={`p-2 rounded-full transition-colors ${
-                isScrolled
-                  ? "text-gold-600 hover:bg-gold-50"
-                  : "text-white hover:bg-white/10"
-              }`}
-            >
-              <Camera className="w-5 h-5" />
-            </motion.button>
-            <motion.button
-              onClick={() => scrollToSection("venue")}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className={`p-2 rounded-full transition-colors ${
-                isScrolled
-                  ? "text-gold-600 hover:bg-gold-50"
-                  : "text-white hover:bg-white/10"
-              }`}
-            >
-              <MapPin className="w-5 h-5" />
-            </motion.button>
+            <Link href="/our-story">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className={`p-2 rounded-full transition-colors ${
+                  isScrolled
+                    ? "text-theme-primary hover:bg-theme-surface-tertiary"
+                    : "text-theme-text-inverse hover:bg-white/10"
+                }`}
+              >
+                <Heart className="w-5 h-5" />
+              </motion.div>
+            </Link>
+            {isHomePage && (
+              <>
+                <motion.button
+                  onClick={() => scrollToSection("gallery")}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className={`p-2 rounded-full transition-colors ${
+                    isScrolled
+                      ? "text-theme-primary hover:bg-theme-surface-tertiary"
+                      : "text-theme-text-inverse hover:bg-white/10"
+                  }`}
+                >
+                  <Camera className="w-5 h-5" />
+                </motion.button>
+                <motion.button
+                  onClick={() => scrollToSection("venue")}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className={`p-2 rounded-full transition-colors ${
+                    isScrolled
+                      ? "text-theme-primary hover:bg-theme-surface-tertiary"
+                      : "text-theme-text-inverse hover:bg-white/10"
+                  }`}
+                >
+                  <MapPin className="w-5 h-5" />
+                </motion.button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -120,12 +149,47 @@ function NavLink({
       whileTap={{ scale: 0.95 }}
       className={`flex items-center space-x-2 font-medium transition-colors duration-300 ${
         isScrolled
-          ? "text-gray-700 hover:text-gold-600"
-          : "text-white hover:text-gold-200"
+          ? "text-theme-text-primary hover:text-theme-primary"
+          : "text-theme-text-inverse hover:text-theme-primary-light"
       }`}
     >
       {icon}
       <span>{label}</span>
     </motion.button>
+  );
+}
+
+function PageNavLink({
+  icon,
+  label,
+  href,
+  isScrolled,
+  isActive,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  isScrolled: boolean;
+  isActive: boolean;
+}) {
+  return (
+    <Link href={href}>
+      <motion.div
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className={`flex items-center space-x-2 font-medium transition-colors duration-300 ${
+          isActive
+            ? isScrolled
+              ? "text-theme-primary"
+              : "text-theme-primary-light"
+            : isScrolled
+            ? "text-theme-text-primary hover:text-theme-primary"
+            : "text-theme-text-inverse hover:text-theme-primary-light"
+        }`}
+      >
+        {icon}
+        <span>{label}</span>
+      </motion.div>
+    </Link>
   );
 }

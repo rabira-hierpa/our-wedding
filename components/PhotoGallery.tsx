@@ -61,21 +61,46 @@ export default function PhotoGallery() {
 
   useEffect(() => {
     fetchGalleryData();
-    // Poll for new photos and wishes every 10 seconds
-    const interval = setInterval(fetchGalleryData, 10000);
-    return () => clearInterval(interval);
+
+    // Refresh when window regains focus (user comes back to tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchGalleryData();
+      }
+    };
+
+    // Listen for custom gallery refresh events from LiveNotifications
+    const handleGalleryRefresh = () => {
+      fetchGalleryData();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("galleryRefresh", handleGalleryRefresh);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("galleryRefresh", handleGalleryRefresh);
+    };
   }, []);
 
-  // Combine and shuffle photos and wishes
+  // Combine and sort photos and wishes by date (newest first)
   useEffect(() => {
     const combined: GalleryItem[] = [
       ...photos.map((photo) => ({ type: "photo" as const, data: photo })),
       ...wishes.map((wish) => ({ type: "wish" as const, data: wish })),
     ];
 
-    // Shuffle for variety
-    const shuffled = combined.sort(() => Math.random() - 0.5);
-    setGalleryItems(shuffled);
+    // Sort by date descending (newest first)
+    const sorted = combined.sort((a, b) => {
+      const dateA = new Date(
+        a.type === "photo" ? a.data.uploadedAt : a.data.createdAt
+      ).getTime();
+      const dateB = new Date(
+        b.type === "photo" ? b.data.uploadedAt : b.data.createdAt
+      ).getTime();
+      return dateB - dateA; // Descending order
+    });
+    setGalleryItems(sorted);
   }, [photos, wishes]);
 
   // Keyboard navigation
@@ -230,7 +255,10 @@ export default function PhotoGallery() {
 
   return (
     <>
-      <section id="gallery" className="py-16 px-4 bg-gradient-to-br from-champagne-50 via-white to-gold-50">
+      <section
+        id="gallery"
+        className="py-16 px-4 bg-gradient-to-br from-champagne-50 via-white to-gold-50"
+      >
         <div className="max-w-7xl mx-auto">
           <AnimatedSection>
             <div className="text-center mb-12">

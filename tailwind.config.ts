@@ -11,6 +11,8 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+
+        // Base color palette
         champagne: {
           50: "#faf9f7",
           100: "#f5f3ee",
@@ -59,39 +61,84 @@ export default {
           800: "#d7d7c8",
           900: "#c8c8b9",
         },
+
+        // Semantic theme tokens
+        theme: {
+          // Primary brand colors
+          primary: "var(--theme-primary, #d4af37)",
+          "primary-light": "var(--theme-primary-light, #f0c75f)",
+          "primary-dark": "var(--theme-primary-dark, #b8941f)",
+
+          // Secondary accent colors
+          secondary: "var(--theme-secondary, #b8aa8e)",
+          "secondary-light": "var(--theme-secondary-light, #ccc3ad)",
+          "secondary-dark": "var(--theme-secondary-dark, #a39174)",
+
+          // Accent colors
+          accent: "var(--theme-accent, #e65f5f)",
+          "accent-light": "var(--theme-accent-light, #f08888)",
+          "accent-dark": "var(--theme-accent-dark, #d13f3f)",
+
+          // Neutral colors
+          surface: "var(--theme-surface, #ffffff)",
+          "surface-secondary": "var(--theme-surface-secondary, #faf9f7)",
+          "surface-tertiary": "var(--theme-surface-tertiary, #f5f3ee)",
+
+          // Text colors
+          "text-primary": "var(--theme-text-primary, #5e5342)",
+          "text-secondary": "var(--theme-text-secondary, #8a7860)",
+          "text-muted": "var(--theme-text-muted, #a39174)",
+          "text-inverse": "var(--theme-text-inverse, #ffffff)",
+
+          // Border colors
+          border: "var(--theme-border, #ebe7dd)",
+          "border-light": "var(--theme-border-light, #f5f3ee)",
+          "border-accent": "var(--theme-border-accent, #faecc4)",
+
+          // Gradient stops
+          "gradient-start": "var(--theme-gradient-start, #faf9f7)",
+          "gradient-mid": "var(--theme-gradient-mid, #ffffff)",
+          "gradient-end": "var(--theme-gradient-end, #fefbf3)",
+
+          // Dark theme colors
+          "dark-surface": "var(--theme-dark-surface, #5e5342)",
+          "dark-surface-secondary":
+            "var(--theme-dark-surface-secondary, #654e1a)",
+          "dark-text": "var(--theme-dark-text, #faf9f7)",
+        },
       },
       fontFamily: {
-        serif: ['Playfair Display', 'Georgia', 'serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        script: ['Great Vibes', 'cursive'],
+        serif: ["Playfair Display", "Georgia", "serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+        script: ["Great Vibes", "cursive"],
       },
       animation: {
-        'fade-in': 'fadeIn 0.6s ease-in-out',
-        'slide-up': 'slideUp 0.6s ease-out',
-        'slide-down': 'slideDown 0.6s ease-out',
-        'scale-in': 'scaleIn 0.5s ease-out',
-        'float': 'float 3s ease-in-out infinite',
+        "fade-in": "fadeIn 0.6s ease-in-out",
+        "slide-up": "slideUp 0.6s ease-out",
+        "slide-down": "slideDown 0.6s ease-out",
+        "scale-in": "scaleIn 0.5s ease-out",
+        float: "float 3s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
         slideUp: {
-          '0%': { transform: 'translateY(30px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
+          "0%": { transform: "translateY(30px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         slideDown: {
-          '0%': { transform: 'translateY(-30px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
+          "0%": { transform: "translateY(-30px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         scaleIn: {
-          '0%': { transform: 'scale(0.9)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+          "0%": { transform: "scale(0.9)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
         float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-10px)' },
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
         },
       },
     },

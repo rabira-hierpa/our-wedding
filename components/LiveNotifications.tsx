@@ -34,66 +34,149 @@ export default function LiveNotifications() {
   useEffect(() => {
     let lastPhotoCount = 0;
     let lastWishCount = 0;
+    let eventSource: EventSource | null = null;
+    let pollingInterval: NodeJS.Timeout | null = null;
 
-    const checkForUpdates = async () => {
+    // Try to use SSE first (more efficient for 600 users)
+    const useSSE = typeof EventSource !== "undefined";
+
+    if (useSSE) {
+      // Server-Sent Events for real-time updates (no polling!)
       try {
-        const [photosRes, wishesRes] = await Promise.all([
-          fetch("/api/photos", { cache: "no-store" }),
-          fetch("/api/wishes", { cache: "no-store" }),
-        ]);
+        eventSource = new EventSource("/api/sse");
 
-        if (photosRes.ok && wishesRes.ok) {
-          const photosData = await photosRes.json();
-          const wishesData = await wishesRes.json();
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
 
-          const currentPhotoCount = photosData.photos?.length || 0;
-          const currentWishCount = wishesData?.length || 0;
-
-          // New photo notification
-          if (currentPhotoCount > lastPhotoCount && lastPhotoCount > 0) {
-            const latestPhoto = photosData.photos[0];
-            if (latestPhoto) {
+            if (data.type === "photo") {
               addNotification({
                 id: `photo-${Date.now()}`,
                 type: "photo",
-                message: latestPhoto.caption || "shared a photo",
-                author: `${latestPhoto.guest?.firstName || "Someone"} ${
-                  latestPhoto.guest?.lastName || ""
+                message: data.data.caption || "shared a photo",
+                author: `${data.data.guest.firstName || "Someone"} ${
+                  data.data.guest.lastName || ""
                 }`.trim(),
-                timestamp: new Date(latestPhoto.uploadedAt),
+                timestamp: new Date(),
               });
-            }
-          }
 
-          // New wish notification
-          if (currentWishCount > lastWishCount && lastWishCount > 0) {
-            const latestWish = wishesData[0];
-            if (latestWish) {
+              // Trigger gallery refresh
+              window.dispatchEvent(new Event("galleryRefresh"));
+            } else if (data.type === "wish") {
               addNotification({
                 id: `wish-${Date.now()}`,
                 type: "wish",
-                message: latestWish.message,
-                author: `${latestWish.guest?.firstName || "Someone"} ${
-                  latestWish.guest?.lastName || ""
+                message: data.data.message,
+                author: `${data.data.guest.firstName || "Someone"} ${
+                  data.data.guest.lastName || ""
                 }`.trim(),
-                timestamp: new Date(latestWish.createdAt),
+                timestamp: new Date(),
               });
-            }
-          }
 
-          lastPhotoCount = currentPhotoCount;
-          lastWishCount = currentWishCount;
-        }
+              // Trigger gallery refresh
+              window.dispatchEvent(new Event("galleryRefresh"));
+            }
+          } catch (error) {
+            console.error("Error parsing SSE data:", error);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error(
+            "SSE connection error, falling back to polling:",
+            error
+          );
+          eventSource?.close();
+          startPolling();
+        };
       } catch (error) {
-        console.error("Error checking for updates:", error);
+        console.error("SSE not supported, using polling:", error);
+        startPolling();
+      }
+    } else {
+      // Fallback to polling for older browsers
+      startPolling();
+    }
+
+    function startPolling() {
+      const checkForUpdates = async () => {
+        try {
+          const [photosRes, wishesRes] = await Promise.all([
+            fetch("/api/photos", {
+              cache: "no-store",
+            }),
+            fetch("/api/wishes", {
+              cache: "no-store",
+            }),
+          ]);
+
+          if (photosRes.ok && wishesRes.ok) {
+            const photosData = await photosRes.json();
+            const wishesData = await wishesRes.json();
+
+            const currentPhotoCount = photosData.photos?.length || 0;
+            const currentWishCount = wishesData?.length || 0;
+
+            // New photo notification
+            if (currentPhotoCount > lastPhotoCount && lastPhotoCount > 0) {
+              const latestPhoto = photosData.photos[0];
+              if (latestPhoto) {
+                addNotification({
+                  id: `photo-${Date.now()}`,
+                  type: "photo",
+                  message: latestPhoto.caption || "shared a photo",
+                  author: `${latestPhoto.guest?.firstName || "Someone"} ${
+                    latestPhoto.guest?.lastName || ""
+                  }`.trim(),
+                  timestamp: new Date(latestPhoto.uploadedAt),
+                });
+
+                // Trigger gallery refresh
+                window.dispatchEvent(new Event("galleryRefresh"));
+              }
+            }
+
+            // New wish notification
+            if (currentWishCount > lastWishCount && lastWishCount > 0) {
+              const latestWish = wishesData[0];
+              if (latestWish) {
+                addNotification({
+                  id: `wish-${Date.now()}`,
+                  type: "wish",
+                  message: latestWish.message,
+                  author: `${latestWish.guest?.firstName || "Someone"} ${
+                    latestWish.guest?.lastName || ""
+                  }`.trim(),
+                  timestamp: new Date(latestWish.createdAt),
+                });
+
+                // Trigger gallery refresh
+                window.dispatchEvent(new Event("galleryRefresh"));
+              }
+            }
+
+            lastPhotoCount = currentPhotoCount;
+            lastWishCount = currentWishCount;
+          }
+        } catch (error) {
+          console.error("Error checking for updates:", error);
+        }
+      };
+
+      // Check every 30 seconds (optimized for 600 concurrent users)
+      pollingInterval = setInterval(checkForUpdates, 30000);
+      checkForUpdates(); // Initial check
+    }
+
+    // Cleanup function
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
     };
-
-    // Check every 5 seconds
-    const interval = setInterval(checkForUpdates, 5000);
-    checkForUpdates(); // Initial check
-
-    return () => clearInterval(interval);
   }, [addNotification]);
 
   return (

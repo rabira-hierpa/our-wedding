@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Heart, Sparkles } from "lucide-react";
 import AnimatedSection from "./AnimatedSection";
 
 /**
@@ -9,7 +9,7 @@ import AnimatedSection from "./AnimatedSection";
  */
 export default function FooterSection() {
   return (
-    <footer className="relative py-20 px-4 bg-gradient-to-br from-champagne-100 via-gold-100 to-champagne-200 overflow-hidden">
+    <footer className="relative py-20 px-4 bg-gradient-to-br from-theme-surface-tertiary via-theme-gradient-end to-theme-surface-secondary overflow-hidden">
       {/* Decorative sparkles */}
       <div className="absolute inset-0 opacity-20">
         {[...Array(20)].map((_, i) => (
@@ -31,7 +31,7 @@ export default function FooterSection() {
               delay: Math.random() * 2,
             }}
           >
-            <Sparkles className="w-4 h-4 text-gold-500" />
+            <Sparkles className="w-4 h-4 text-theme-primary" />
           </motion.div>
         ))}
       </div>
@@ -43,28 +43,19 @@ export default function FooterSection() {
             transition={{ duration: 3, repeat: Infinity }}
             className="inline-block mb-6"
           >
-            <Sparkles className="w-16 h-16 text-gold-600 mx-auto" />
+            <Sparkles className="w-16 h-16 text-theme-primary mx-auto" />
           </motion.div>
 
-          <h3 className="font-serif text-4xl md:text-5xl font-bold text-champagne-900 mb-6">
+          <h3 className="font-serif text-4xl md:text-5xl font-bold text-theme-text-primary mb-6">
             Forever Grateful
           </h3>
 
-          <p className="text-lg md:text-xl text-gold-800 leading-relaxed mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-theme-text-secondary leading-relaxed mb-8 max-w-2xl mx-auto">
             Thank you for being part of our story and for helping us preserve
             these precious moments. Your presence made our day truly magical.
           </p>
 
-          <div className="w-24 h-1 bg-gradient-to-r from-transparent via-gold-500 to-transparent mx-auto mb-8" />
-
-          <div className="space-y-2">
-            <p className="text-sm text-champagne-700 font-light">
-              Made with love and joy
-            </p>
-            <p className="text-xs text-gold-700">
-              © {new Date().getFullYear()} • A celebration of love
-            </p>
-          </div>
+          <div className="w-24 h-1 bg-gradient-to-r from-transparent via-theme-primary to-transparent mx-auto mb-8" />
 
           {/* Animated sparkles */}
           <motion.div
@@ -86,7 +77,7 @@ export default function FooterSection() {
                   delay: i * 0.2,
                 }}
               >
-                <Sparkles className="w-6 h-6 text-gold-500" />
+                <Heart className="w-6 h-6 text-theme-primary" />
               </motion.div>
             ))}
           </motion.div>
