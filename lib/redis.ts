@@ -33,7 +33,7 @@ export default redis;
 // Custom JSON serializer that handles BigInt
 function safeStringify(data: any): string {
   return JSON.stringify(data, (_, value) =>
-    typeof value === 'bigint' ? value.toString() : value
+    typeof value === "bigint" ? value.toString() : value
   );
 }
 
