@@ -24,12 +24,14 @@ export default function UploadNotifications() {
 
   const checkForNewUploads = async () => {
     try {
-      const response = await fetch("/api/photos?cache=" + Date.now());
+      const response = await fetch(
+        `/api/photos?limit=48&cache=${Date.now()}`
+      );
       if (response.ok) {
         const data = await response.json();
         const photos = data.photos || [];
 
-        // Get photos uploaded in the last 5 minutes
+        // Get photos uploaded in the last 5 minutes (newest page is enough)
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
         const recentPhotos = photos.filter(
           (photo: any) => new Date(photo.uploadedAt).getTime() > fiveMinutesAgo

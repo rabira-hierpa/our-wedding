@@ -50,7 +50,7 @@ export default function Header() {
                 className={`font-script text-3xl md:text-4xl font-bold transition-colors duration-300 ${
                   isScrolled
                     ? "bg-gradient-to-r from-theme-primary to-theme-accent bg-clip-text text-transparent"
-                    : "text-theme-text-inverse drop-shadow-lg"
+                    : "text-champagne-900"
                 }`}
               >
                 Rab & Lee
@@ -90,7 +90,7 @@ export default function Header() {
                 className={`p-2 rounded-full transition-colors ${
                   isScrolled
                     ? "text-theme-primary hover:bg-theme-surface-tertiary"
-                    : "text-theme-text-inverse hover:bg-white/10"
+                    : "text-champagne-800 hover:bg-champagne-200/50"
                 }`}
               >
                 <Heart className="w-5 h-5" />
@@ -105,7 +105,7 @@ export default function Header() {
                   className={`p-2 rounded-full transition-colors ${
                     isScrolled
                       ? "text-theme-primary hover:bg-theme-surface-tertiary"
-                      : "text-theme-text-inverse hover:bg-white/10"
+                      : "text-champagne-800 hover:bg-champagne-200/50"
                   }`}
                 >
                   <Camera className="w-5 h-5" />
@@ -117,7 +117,7 @@ export default function Header() {
                   className={`p-2 rounded-full transition-colors ${
                     isScrolled
                       ? "text-theme-primary hover:bg-theme-surface-tertiary"
-                      : "text-theme-text-inverse hover:bg-white/10"
+                      : "text-champagne-800 hover:bg-champagne-200/50"
                   }`}
                 >
                   <MapPin className="w-5 h-5" />
@@ -150,7 +150,7 @@ function NavLink({
       className={`flex items-center space-x-2 font-medium transition-colors duration-300 ${
         isScrolled
           ? "text-theme-text-primary hover:text-theme-primary"
-          : "text-theme-text-inverse hover:text-theme-primary-light"
+          : "text-champagne-800 hover:text-gold-700"
       }`}
     >
       {icon}
@@ -179,12 +179,10 @@ function PageNavLink({
         whileTap={{ scale: 0.95 }}
         className={`flex items-center space-x-2 font-medium transition-colors duration-300 ${
           isActive
-            ? isScrolled
-              ? "text-theme-primary"
-              : "text-theme-primary-light"
+            ? "text-gold-700"
             : isScrolled
-            ? "text-theme-text-primary hover:text-theme-primary"
-            : "text-theme-text-inverse hover:text-theme-primary-light"
+              ? "text-theme-text-primary hover:text-theme-primary"
+              : "text-champagne-800 hover:text-gold-700"
         }`}
       >
         {icon}
