@@ -27,13 +27,14 @@ export async function GET(request: NextRequest) {
   const checkUpdates = async () => {
     try {
       const [photoCount, wishCount] = await Promise.all([
-        prisma.photo.count(),
+        prisma.photo.count({ where: { isHidden: false } }),
         prisma.wish.count(),
       ]);
 
       if (photoCount > lastPhotoCount) {
         // Get latest photo
         const latestPhoto = await prisma.photo.findFirst({
+          where: { isHidden: false },
           orderBy: { uploadedAt: "desc" },
           include: { guest: true },
         });
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
 
   // Initialize counts
   try {
-    lastPhotoCount = await prisma.photo.count();
+    lastPhotoCount = await prisma.photo.count({ where: { isHidden: false } });
     lastWishCount = await prisma.wish.count();
   } catch (error) {
     console.error("Error initializing counts:", error);
