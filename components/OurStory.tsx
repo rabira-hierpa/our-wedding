@@ -60,7 +60,7 @@ const storyMoments: StoryMoment[] = [
   },
   {
     id: 6,
-    title: "Forever Yours",
+    title: "A Covenant of Love",
     description:
       "And so our story continues, chapter by chapter, moment by moment. This is just the beginning of our forever.",
     image: "/story/photo6.jpeg",
@@ -283,9 +283,6 @@ export default function OurStory() {
                   />
                 </svg>
               </div>
-              <p className="mt-6 font-serif text-2xl text-theme-text-secondary italic">
-                And they lived happily ever after...
-              </p>
             </div>
           </div>
         </div>

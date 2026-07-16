@@ -102,7 +102,7 @@ export default function LiveNotifications() {
       const checkForUpdates = async () => {
         try {
           const [photosRes, wishesRes] = await Promise.all([
-            fetch("/api/photos", {
+            fetch("/api/photos?limit=1", {
               cache: "no-store",
             }),
             fetch("/api/wishes", {
@@ -114,7 +114,10 @@ export default function LiveNotifications() {
             const photosData = await photosRes.json();
             const wishesData = await wishesRes.json();
 
-            const currentPhotoCount = photosData.photos?.length || 0;
+            const currentPhotoCount =
+              typeof photosData.total === "number"
+                ? photosData.total
+                : photosData.photos?.length || 0;
             const currentWishCount = wishesData?.length || 0;
 
             // New photo notification

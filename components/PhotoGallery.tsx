@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,8 +11,10 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import type { PhotoWithGuest } from "@/types/database";
+import { galleryThumbUrl } from "@/lib/image-url";
 import AnimatedSection from "./AnimatedSection";
 import QuoteCard from "./QuoteCard";
 import {
@@ -20,6 +22,8 @@ import {
   EmptyGalleryState,
   ErrorState,
 } from "./LoadingStates";
+
+const PAGE_SIZE = 24;
 
 // Extended photo type with like count
 interface PhotoWithLikes extends PhotoWithGuest {
@@ -43,11 +47,31 @@ type GalleryItem =
   | { type: "photo"; data: PhotoWithLikes }
   | { type: "wish"; data: Wish };
 
+function mergePhotosById(
+  existing: PhotoWithLikes[],
+  incoming: PhotoWithLikes[]
+): PhotoWithLikes[] {
+  const byId = new Map<string, PhotoWithLikes>();
+  for (const photo of existing) {
+    byId.set(photo.id, photo);
+  }
+  for (const photo of incoming) {
+    byId.set(photo.id, { ...byId.get(photo.id), ...photo });
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) =>
+      new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  );
+}
+
 export default function PhotoGallery() {
   const [photos, setPhotos] = useState<PhotoWithLikes[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [totalPhotos, setTotalPhotos] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
     null
@@ -56,22 +80,109 @@ export default function PhotoGallery() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+  const nextCursorRef = useRef<string | null>(null);
+
   const selectedPhoto =
     selectedPhotoIndex !== null ? photos[selectedPhotoIndex] : null;
 
-  useEffect(() => {
-    fetchGalleryData();
+  const fetchPage = useCallback(
+    async (cursor: string | null, mode: "replace" | "append" | "merge") => {
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+      if (cursor) params.set("cursor", cursor);
 
-    // Refresh when window regains focus (user comes back to tab)
+      const [photosRes, wishesRes] = await Promise.all([
+        fetch(`/api/photos?${params.toString()}`, { cache: "no-store" }),
+        mode === "append"
+          ? Promise.resolve(null)
+          : fetch("/api/wishes", { cache: "no-store" }),
+      ]);
+
+      if (!photosRes.ok) {
+        throw new Error("Failed to fetch photos");
+      }
+
+      const photosData = await photosRes.json();
+      const pagePhotos: PhotoWithLikes[] = photosData.photos || [];
+
+      if (typeof photosData.total === "number") {
+        setTotalPhotos(photosData.total);
+      }
+
+      setNextCursor(photosData.nextCursor ?? null);
+      nextCursorRef.current = photosData.nextCursor ?? null;
+
+      if (mode === "replace") {
+        setPhotos(pagePhotos);
+      } else if (mode === "append") {
+        setPhotos((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const fresh = pagePhotos.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...fresh];
+        });
+      } else {
+        setPhotos((prev) => mergePhotosById(prev, pagePhotos));
+      }
+
+      if (wishesRes) {
+        if (!wishesRes.ok) {
+          throw new Error("Failed to fetch wishes");
+        }
+        const wishesData = await wishesRes.json();
+        setWishes(wishesData);
+      }
+
+      setError(null);
+    },
+    []
+  );
+
+  const loadInitial = useCallback(async () => {
+    try {
+      setLoading(true);
+      await fetchPage(null, "replace");
+    } catch (err) {
+      console.error("Error fetching gallery data:", err);
+      setError("Failed to load gallery");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPage]);
+
+  const softRefresh = useCallback(async () => {
+    try {
+      await fetchPage(null, "merge");
+    } catch (err) {
+      console.error("Error refreshing gallery:", err);
+    }
+  }, [fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !nextCursorRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      await fetchPage(nextCursorRef.current, "append");
+    } catch (err) {
+      console.error("Error loading more photos:", err);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [fetchPage]);
+
+  useEffect(() => {
+    loadInitial();
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        fetchGalleryData();
+        softRefresh();
       }
     };
 
-    // Listen for custom gallery refresh events from LiveNotifications
     const handleGalleryRefresh = () => {
-      fetchGalleryData();
+      softRefresh();
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -81,7 +192,25 @@ export default function PhotoGallery() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("galleryRefresh", handleGalleryRefresh);
     };
-  }, []);
+  }, [loadInitial, softRefresh]);
+
+  // Infinite scroll sentinel
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore, galleryItems.length, nextCursor]);
 
   // Combine and sort photos and wishes by date (newest first)
   useEffect(() => {
@@ -90,7 +219,6 @@ export default function PhotoGallery() {
       ...wishes.map((wish) => ({ type: "wish" as const, data: wish })),
     ];
 
-    // Sort by date descending (newest first)
     const sorted = combined.sort((a, b) => {
       const dateA = new Date(
         a.type === "photo" ? a.data.uploadedAt : a.data.createdAt
@@ -98,7 +226,7 @@ export default function PhotoGallery() {
       const dateB = new Date(
         b.type === "photo" ? b.data.uploadedAt : b.data.createdAt
       ).getTime();
-      return dateB - dateA; // Descending order
+      return dateB - dateA;
     });
     setGalleryItems(sorted);
   }, [photos, wishes]);
@@ -121,7 +249,6 @@ export default function PhotoGallery() {
     [selectedPhotoIndex, photos.length]
   );
 
-  // Keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (selectedPhoto) {
@@ -139,35 +266,9 @@ export default function PhotoGallery() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedPhoto, navigatePhoto]);
 
-  const fetchGalleryData = async () => {
-    try {
-      const [photosRes, wishesRes] = await Promise.all([
-        fetch("/api/photos", { cache: "no-store" }),
-        fetch("/api/wishes", { cache: "no-store" }),
-      ]);
-
-      if (!photosRes.ok || !wishesRes.ok) {
-        throw new Error("Failed to fetch gallery data");
-      }
-
-      const photosData = await photosRes.json();
-      const wishesData = await wishesRes.json();
-
-      setPhotos(photosData.photos);
-      setWishes(wishesData);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching gallery data:", err);
-      setError("Failed to load gallery");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLike = async (photoId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Get or create guest ID from localStorage
     let guestId = localStorage.getItem("guestId");
     if (!guestId) {
       guestId = `web-guest-${Date.now()}-${Math.random()
@@ -188,7 +289,6 @@ export default function PhotoGallery() {
       if (response.ok) {
         const data = await response.json();
 
-        // Update liked photos set
         setLikedPhotos((prev) => {
           const newSet = new Set(prev);
           if (data.liked) {
@@ -199,7 +299,6 @@ export default function PhotoGallery() {
           return newSet;
         });
 
-        // Update photo like count in state
         setPhotos((prev) =>
           prev.map((photo) => {
             if (photo.id === photoId) {
@@ -246,12 +345,14 @@ export default function PhotoGallery() {
   }
 
   if (error) {
-    return <ErrorState onRetry={fetchGalleryData} />;
+    return <ErrorState onRetry={loadInitial} />;
   }
 
   if (galleryItems.length === 0) {
     return <EmptyGalleryState />;
   }
+
+  const displayPhotoCount = totalPhotos || photos.length;
 
   return (
     <>
@@ -266,9 +367,10 @@ export default function PhotoGallery() {
                 Our Gallery
               </h2>
               <p className="text-xl text-gold-700 font-light">
-                {photos.length} precious{" "}
-                {photos.length === 1 ? "moment" : "moments"} & {wishes.length}{" "}
-                heartfelt {wishes.length === 1 ? "wish" : "wishes"}
+                {displayPhotoCount} precious{" "}
+                {displayPhotoCount === 1 ? "moment" : "moments"} &{" "}
+                {wishes.length} heartfelt{" "}
+                {wishes.length === 1 ? "wish" : "wishes"}
               </p>
             </div>
           </AnimatedSection>
@@ -286,7 +388,7 @@ export default function PhotoGallery() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
                   duration: 0.5,
-                  delay: index * 0.05,
+                  delay: Math.min(index, 12) * 0.05,
                   ease: "easeOut",
                 }}
                 className="break-inside-avoid"
@@ -301,10 +403,11 @@ export default function PhotoGallery() {
                     onMouseLeave={() => setHoveredId(null)}
                   >
                     <Image
-                      src={item.data.publicUrl}
+                      src={galleryThumbUrl(item.data.publicUrl)}
                       alt={item.data.caption || "Wedding photo"}
                       width={600}
                       height={600}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                       className="w-full h-auto object-cover"
                       unoptimized
                     />
@@ -384,6 +487,22 @@ export default function PhotoGallery() {
               </motion.div>
             ))}
           </div>
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-8 w-full" aria-hidden />
+
+          {loadingMore && (
+            <div className="flex justify-center items-center gap-2 py-8 text-champagne-700">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="font-script text-lg">Loading more moments…</span>
+            </div>
+          )}
+
+          {!nextCursor && photos.length > 0 && (
+            <p className="text-center text-champagne-600 text-sm py-6">
+              You&apos;ve reached the end of the gallery
+            </p>
+          )}
         </div>
       </section>
 
@@ -454,6 +573,7 @@ export default function PhotoGallery() {
               {photos.length > 1 && (
                 <div className="absolute -top-12 left-0 text-white text-sm font-semibold">
                   {(selectedPhotoIndex ?? 0) + 1} / {photos.length}
+                  {totalPhotos > photos.length ? ` of ${totalPhotos}` : ""}
                 </div>
               )}
 

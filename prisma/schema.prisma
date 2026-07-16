@@ -37,6 +37,7 @@ model Photo {
   telegramFileId    String   @map("telegram_file_id")
   groupMessageId    String?  @map("group_message_id") // Track message in group for deletion
   caption           String?
+  isHidden          Boolean  @default(false) @map("is_hidden")
   uploadedAt        DateTime @default(now()) @map("uploaded_at")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -45,6 +46,7 @@ model Photo {
 
   @@index([guestId])
   @@index([uploadedAt(sort: Desc)])
+  @@index([isHidden])
   @@map("photos")
 }
 

@@ -5,6 +5,7 @@ export interface Guest {
   firstName: string;
   lastName?: string | null;
   registeredAt: string;
+  inWeddingGroup: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,13 +16,30 @@ export interface Photo {
   storagePath: string;
   publicUrl: string;
   telegramFileId: string;
+  groupMessageId?: string | null;
   caption?: string | null;
+  isHidden: boolean;
   uploadedAt: string;
   createdAt: string;
 }
 
 export interface PhotoWithGuest extends Photo {
   guest: Guest;
+  likeCount?: number;
+}
+
+export interface Wish {
+  id: string;
+  guestId: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface Like {
+  id: string;
+  photoId: string;
+  guestId: string;
+  createdAt: string;
 }
 
 export type Database = {
@@ -36,6 +54,16 @@ export type Database = {
         Row: Photo;
         Insert: Omit<Photo, "id" | "createdAt">;
         Update: Partial<Omit<Photo, "id" | "createdAt">>;
+      };
+      wishes: {
+        Row: Wish;
+        Insert: Omit<Wish, "id" | "createdAt">;
+        Update: Partial<Omit<Wish, "id" | "createdAt">>;
+      };
+      likes: {
+        Row: Like;
+        Insert: Omit<Like, "id" | "createdAt">;
+        Update: Partial<Omit<Like, "id" | "createdAt">>;
       };
     };
   };

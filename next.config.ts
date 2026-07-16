@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
       },
     ],
-    unoptimized: true, // Allow any image source in production
+    // Keep unoptimized for Docker/standalone; gallery thumbs use /api/uploads?w=
+    unoptimized: true,
   },
 };
 

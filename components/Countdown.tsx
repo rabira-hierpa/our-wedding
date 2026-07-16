@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+
+export const WEDDING_DATE = new Date("2026-01-10T00:00:00");
+
+export function isWeddingCountdownOver(now: Date = new Date()): boolean {
+  return now.getTime() >= WEDDING_DATE.getTime();
+}
 
 interface TimeLeft {
   days: number;
@@ -10,7 +16,11 @@ interface TimeLeft {
   seconds: number;
 }
 
-export default function Countdown() {
+interface CountdownProps {
+  readonly onComplete?: () => void;
+}
+
+export default function Countdown({ onComplete }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
@@ -18,14 +28,17 @@ export default function Countdown() {
     seconds: 0,
   });
   const [mounted, setMounted] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     setMounted(true);
-    const weddingDate = new Date("2026-01-10T00:00:00");
 
     const calculateTimeLeft = () => {
-      const now = new Date();
-      const difference = weddingDate.getTime() - now.getTime();
+      const difference = WEDDING_DATE.getTime() - Date.now();
 
       if (difference > 0) {
         setTimeLeft({
@@ -34,18 +47,29 @@ export default function Countdown() {
           minutes: Math.floor((difference / 1000 / 60) % 60),
           seconds: Math.floor((difference / 1000) % 60),
         });
+        return true;
       }
+
+      onCompleteRef.current?.();
+      return false;
     };
 
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
+    if (!calculateTimeLeft()) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      if (!calculateTimeLeft()) {
+        clearInterval(timer);
+      }
+    }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
   if (!mounted) {
     return (
-      <div className="flex gap-4 justify-center">
+      <div className="flex gap-4 justify-start">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="text-center">
             <div className="w-20 h-20 md:w-28 md:h-28 bg-champagne-300/20 rounded-2xl mb-2" />
@@ -64,7 +88,7 @@ export default function Countdown() {
   ];
 
   return (
-    <div className="flex flex-wrap gap-4 md:gap-6 justify-center">
+    <div className="flex flex-wrap gap-4 md:gap-6 justify-start">
       {timeUnits.map((unit, index) => (
         <motion.div
           key={unit.label}

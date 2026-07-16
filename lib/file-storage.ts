@@ -1,5 +1,5 @@
 import { existsSync } from "fs";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 
@@ -7,6 +7,9 @@ import sharp from "sharp";
 const STORAGE_DIR =
   process.env.STORAGE_DIR || path.join(process.cwd(), "public", "uploads");
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+const GRID_THUMB_WIDTH = 720;
+const GRID_THUMB_QUALITY = 75;
 
 /**
  * Ensures the storage directory exists
@@ -50,8 +53,35 @@ async function convertToJPEG(
 }
 
 /**
+ * Pre-warm the grid thumbnail cache used by /api/uploads?w=720
+ */
+async function writeGridThumbCache(
+  sourcePath: string,
+  storagePath: string
+): Promise<void> {
+  try {
+    const cacheDir = path.join(STORAGE_DIR, ".cache");
+    await mkdir(cacheDir, { recursive: true });
+
+    const cacheName = `w${GRID_THUMB_WIDTH}-q${GRID_THUMB_QUALITY}-${storagePath}.webp`;
+    const cachePath = path.join(cacheDir, cacheName);
+
+    const thumb = await sharp(sourcePath)
+      .rotate()
+      .resize({ width: GRID_THUMB_WIDTH, withoutEnlargement: true })
+      .webp({ quality: GRID_THUMB_QUALITY })
+      .toBuffer();
+
+    await writeFile(cachePath, thumb);
+  } catch (error) {
+    // Non-fatal: on-the-fly resize still works for existing clients
+    console.error("Error writing grid thumb cache:", error);
+  }
+}
+
+/**
  * Uploads a photo to local file system
- * Automatically converts HEIC/HEIF to JPEG
+ * Automatically converts HEIC/HEIF to JPEG and prebuilds a grid thumb
  */
 export async function uploadPhotoToStorage(
   fileBuffer: Buffer,
@@ -73,6 +103,9 @@ export async function uploadPhotoToStorage(
     // Write file to disk
     await writeFile(fullPath, processedBuffer);
 
+    // Prebuild common gallery thumb so first page views hit disk cache
+    await writeGridThumbCache(fullPath, storagePath);
+
     // Generate public URL - use API route to serve images
     const publicUrl = `${BASE_URL}/api/uploads/${storagePath}`;
 
@@ -87,17 +120,26 @@ export async function uploadPhotoToStorage(
 }
 
 /**
- * Deletes a photo from local file system
+ * Deletes a photo and any cached resize variants from local file system
  */
 export async function deletePhotoFromStorage(
   filePath: string
 ): Promise<boolean> {
   try {
-    const { unlink } = await import("fs/promises");
     const fullPath = path.join(STORAGE_DIR, filePath);
 
     if (existsSync(fullPath)) {
       await unlink(fullPath);
+    }
+
+    const cacheDir = path.join(STORAGE_DIR, ".cache");
+    if (existsSync(cacheDir)) {
+      const entries = await readdir(cacheDir);
+      await Promise.all(
+        entries
+          .filter((name) => name.includes(filePath))
+          .map((name) => unlink(path.join(cacheDir, name)).catch(() => undefined))
+      );
     }
 
     return true;
